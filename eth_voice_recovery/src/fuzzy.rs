@@ -49,7 +49,7 @@ impl<F: Field> FuzzyCommitmentConfig<F> {
     }
 
     pub fn recover_and_hash<'v: 'a, 'a>(
-        &'v self,
+        &self,
         ctx: &mut Context<'v, F>,
         features: &[u8],
         errors: &[u8],
@@ -140,16 +140,12 @@ impl<F: Field> FuzzyCommitmentConfig<F> {
         self.range().gate()
     }
 
-    pub fn new_context<'a, 'b>(&'b self, region: Region<'a, F>) -> Context<'a, F> {
-        self.sha256_config.new_context(region)
-    }
-
     pub fn finalize(&self, ctx: &mut Context<F>) {
         self.range().finalize(ctx);
     }
 
     fn bytes2bits<'v: 'a, 'a>(
-        &'v self,
+        &self,
         ctx: &mut Context<'v, F>,
         assigned_bytes: &[AssignedValue<'a, F>],
     ) -> Vec<AssignedValue<'a, F>> {
@@ -163,7 +159,7 @@ impl<F: Field> FuzzyCommitmentConfig<F> {
     }
 
     fn xor<'v: 'a, 'a>(
-        &'v self,
+        &self,
         ctx: &mut Context<'v, F>,
         a: &AssignedValue<'a, F>,
         b: &AssignedValue<'a, F>,
