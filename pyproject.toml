@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "voice-recovery-circuit"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "voice_recovery_circuit"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+flask = "^2.2.3"
+flask-cors = "^3.0.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
