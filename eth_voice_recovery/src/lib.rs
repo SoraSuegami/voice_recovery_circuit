@@ -19,6 +19,7 @@ use halo2_base::{AssignedValue, QuantumCell};
 use halo2_dynamic_sha256::{
     AssignedHashResult, Field, Sha256CompressionConfig, Sha256DynamicConfig,
 };
+pub use helper::*;
 use itertools::Itertools;
 use serde_json;
 use snark_verifier_sdk::CircuitExt;
@@ -58,11 +59,10 @@ impl<F: Field> VoiceRecoverConfig<F> {
         let sha256_comp_configs = (0..num_sha2_compression_per_column)
             .map(|_| Sha256CompressionConfig::configure(meta))
             .collect();
-        let msg_hash_sha256_config = Sha256DynamicConfig::construct(
-            sha256_comp_configs,
-            word_size + max_msg_size + 64,
-            range_config,
-        );
+        let max_size = word_size + max_msg_size;
+        let max_size = max_size + (64 - (max_size % 64));
+        let msg_hash_sha256_config =
+            Sha256DynamicConfig::construct(sha256_comp_configs, max_size, range_config);
         Self {
             fuzzy_commitment,
             msg_hash_sha256_config,
@@ -130,20 +130,6 @@ impl<F: Field> VoiceRecoverConfig<F> {
                 QuantumCell::Existing(&enabled_byte1),
             );
         }
-        // let assigned_msg_hash_input =
-        //     vec![fuzzy_result.assigned_word, assigned_message.clone()].concat();
-        // for (byte0, byte1) in msg_hash_result
-        //     .input_bytes
-        //     .iter()
-        //     .zip(assigned_msg_hash_input.iter())
-        // {
-        //     // let enabled_byte0 = gate.mul(ctx, QuantumCell::Existing(byte0), QuantumCell::Existing(&msg_hash_result.))
-        //     // gate.assert_equal(
-        //     //     ctx,
-        //     //     QuantumCell::Existing(&byte0),
-        //     //     QuantumCell::Existing(&byte1),
-        //     // );
-        // }
 
         Ok(VoiceRecoverResult {
             assigned_commitment: fuzzy_result.assigned_commitment,
@@ -203,18 +189,26 @@ pub struct DefaultVoiceRecoverCircuit<F: Field> {
     _f: PhantomData<F>,
 }
 
+impl<F: Field> Default for DefaultVoiceRecoverCircuit<F> {
+    fn default() -> Self {
+        let params = Self::read_config_params();
+        let word_size = params.word_size;
+        Self {
+            features: vec![0; word_size],
+            errors: vec![0; word_size],
+            commitment: vec![0; word_size],
+            message: vec![],
+            _f: PhantomData,
+        }
+    }
+}
+
 impl<F: Field> Circuit<F> for DefaultVoiceRecoverCircuit<F> {
     type Config = DefaultVoiceRecoverConfig<F>;
     type FloorPlanner = SimpleFloorPlanner;
 
     fn without_witnesses(&self) -> Self {
-        Self {
-            features: vec![],
-            errors: vec![],
-            commitment: vec![],
-            message: vec![],
-            _f: PhantomData,
-        }
+        Self::default()
     }
 
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
@@ -318,9 +312,9 @@ impl<F: Field> Circuit<F> for DefaultVoiceRecoverCircuit<F> {
         for (idx, cell) in feature_hash_cell.into_iter().enumerate() {
             layouter.constrain_instance(cell, config.feature_hash_public, idx)?;
         }
-        // for (idx, cell) in message_cell.into_iter().enumerate() {
-        //     layouter.constrain_instance(cell, config.message_public, idx)?;
-        // }
+        for (idx, cell) in message_cell.into_iter().enumerate() {
+            layouter.constrain_instance(cell, config.message_public, idx)?;
+        }
         for (idx, cell) in message_hash_cell.into_iter().enumerate() {
             layouter.constrain_instance(cell, config.message_hash_public, idx)?;
         }
@@ -365,15 +359,20 @@ mod test {
                     .map(|((f, w), e)| f ^ w ^ e)
                     .collect_vec();
                 let features_bytes = bool_slice_to_le_bytes(&features_bits);
+                println!("features_bytes {}", hex::encode(&features_bytes));
                 let word_bytes = bool_slice_to_le_bytes(&word_bits);
+                println!("word_bytes {}", hex::encode(&word_bytes));
                 let error_bytes = bool_slice_to_le_bytes(&error_bits);
+                println!("error_bytes {}", hex::encode(&error_bytes));
                 let commitment_bytes = bool_slice_to_le_bytes(&commitment_bits);
+                println!("commitment_bytes {}", hex::encode(&commitment_bytes));
                 let message = b"test".to_vec();
                 let commitment_public = commitment_bytes
                     .iter()
                     .map(|byte| Fr::from(*byte as u64))
                     .collect_vec();
                 let feature_hash = Sha256::digest(&word_bytes).to_vec();
+                println!("feature_hash {}", hex::encode(&feature_hash));
                 let feature_hash_public = feature_hash
                     .into_iter()
                     .map(|byte| Fr::from(byte as u64))
@@ -384,6 +383,7 @@ mod test {
                     .collect_vec();
                 let message_hash =
                     Sha256::digest(&[word_bytes.to_vec(), message.to_vec()].concat()).to_vec();
+                println!("message_hash {}", hex::encode(&message_hash));
                 let message_hash_public = message_hash
                     .iter()
                     .map(|byte| Fr::from(*byte as u64))
@@ -401,7 +401,7 @@ mod test {
                     vec![
                         commitment_public,
                         feature_hash_public,
-                        vec![],
+                        message_public,
                         message_hash_public,
                     ],
                 )

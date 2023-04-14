@@ -38,8 +38,9 @@ impl<F: Field> FuzzyCommitmentConfig<F> {
         let sha256_comp_configs = (0..num_sha2_compression_per_column)
             .map(|_| Sha256CompressionConfig::configure(meta))
             .collect();
+        let max_size = word_size + (64 - (word_size % 64));
         let sha256_config =
-            Sha256DynamicConfig::construct(sha256_comp_configs, word_size + 64, range_config);
+            Sha256DynamicConfig::construct(sha256_comp_configs, max_size, range_config);
         Self {
             sha256_config,
             error_threshold,
