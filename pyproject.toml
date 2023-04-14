@@ -10,6 +10,7 @@ packages = [{include = "voice_recovery_circuit"}]
 python = "^3.10"
 flask = "^2.2.3"
 flask-cors = "^3.0.10"
+bchlib = "^0.14.0"
 
 
 [build-system]
