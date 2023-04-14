@@ -40,6 +40,7 @@ hex = "0.4.3"
 halo2-dynamic-sha256 = { git = "https://github.com/zkemail/halo2-dynamic-sha256.git", version = "0.1.0", branch = "main" }
 
 [dev-dependencies]
+temp-env = "0.3.3"
 
 
 [patch."https://github.com/axiom-crypto/halo2-lib.git"]
