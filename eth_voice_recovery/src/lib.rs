@@ -1,4 +1,6 @@
 mod fuzzy;
+use std::marker::PhantomData;
+
 use crate::fuzzy::*;
 use halo2_base::halo2_proofs::circuit::{AssignedCell, Cell, Region, SimpleFloorPlanner, Value};
 use halo2_base::halo2_proofs::plonk::{Circuit, Column, ConstraintSystem, Instance};
@@ -56,7 +58,7 @@ impl<F: Field> VoiceRecoverConfig<F> {
         let fuzzy_result = self
             .fuzzy_commitment
             .recover_and_hash(ctx, features, errors, commitment)?;
-        let msg_hash_input_bytes = vec![fuzzy_result.randomness_value, message.to_vec()].concat();
+        let msg_hash_input_bytes = vec![fuzzy_result.word_value, message.to_vec()].concat();
         let msg_hash_result = self
             .fuzzy_commitment
             .sha256_config
@@ -67,7 +69,7 @@ impl<F: Field> VoiceRecoverConfig<F> {
             .map(|val| gate.load_witness(ctx, Value::known(F::from(*val as u64))))
             .collect_vec();
         let assigned_msg_hash_input =
-            vec![fuzzy_result.assigned_randomness, assigned_message.clone()].concat();
+            vec![fuzzy_result.assigned_word, assigned_message.clone()].concat();
         for (byte0, byte1) in msg_hash_result
             .input_bytes
             .iter()
@@ -82,7 +84,7 @@ impl<F: Field> VoiceRecoverConfig<F> {
         let msg_len = gate.sub(
             ctx,
             QuantumCell::Existing(&msg_hash_result.input_len),
-            QuantumCell::Existing(&fuzzy_result.assigned_randomness_len),
+            QuantumCell::Existing(&fuzzy_result.assigned_word_len),
         );
         Ok(VoiceRecoverResult {
             assigned_commitment: fuzzy_result.assigned_commitment,

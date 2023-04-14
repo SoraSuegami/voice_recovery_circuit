@@ -15,9 +15,9 @@ use itertools::Itertools;
 pub struct FuzzyCommitmentResult<'a, F: Field> {
     pub(crate) assigned_commitment: Vec<AssignedValue<'a, F>>,
     pub(crate) assigned_feature_hash: Vec<AssignedValue<'a, F>>,
-    pub(crate) assigned_randomness: Vec<AssignedValue<'a, F>>,
-    pub(crate) assigned_randomness_len: AssignedValue<'a, F>,
-    pub(crate) randomness_value: Vec<u8>,
+    pub(crate) assigned_word: Vec<AssignedValue<'a, F>>,
+    pub(crate) assigned_word_len: AssignedValue<'a, F>,
+    pub(crate) word_value: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -73,19 +73,19 @@ impl<F: Field> FuzzyCommitmentConfig<F> {
         let errors_bits = self.bytes2bits(ctx, &assigned_errors);
         let commitment_bits = self.bytes2bits(ctx, &assigned_commitment);
 
-        // 1. y = features XOR commitment
-        let y = features_bits
+        // 1. word errored = features XOR commitment
+        let w_e = features_bits
             .iter()
             .zip(commitment_bits.iter())
             .map(|(f, c)| self.xor(ctx, &f, &c))
             .collect_vec();
-        // 2. r = y XOR error
-        let r_bits = y
+        // 2. word = word errored XOR error
+        let word_bits = w_e
             .iter()
             .zip(errors_bits.iter())
             .map(|(y, e)| self.xor(ctx, &y, &e))
             .collect_vec();
-        let r_bytes = r_bits
+        let word_bytes = word_bits
             .chunks(8)
             .map(|bits| {
                 let mut byte = gate.load_zero(ctx);
@@ -110,22 +110,25 @@ impl<F: Field> FuzzyCommitmentConfig<F> {
             );
         }
         range.check_less_than_safe(ctx, &e_weight, self.error_threshold);
-        let randomness_bytes = features
+        let word_values = features
             .iter()
             .zip(errors.iter())
             .zip(commitment.iter())
             .map(|((f, e), c)| f ^ e ^ c)
             .collect_vec();
-        let assigned_hash_result = self.sha256_config.digest(ctx, &randomness_bytes)?;
-        for (r, h) in r_bytes.iter().zip(assigned_hash_result.input_bytes.iter()) {
-            gate.assert_equal(ctx, QuantumCell::Existing(r), QuantumCell::Existing(h));
+        let assigned_hash_result = self.sha256_config.digest(ctx, &word_values)?;
+        for (w, h) in word_bytes
+            .iter()
+            .zip(assigned_hash_result.input_bytes.iter())
+        {
+            gate.assert_equal(ctx, QuantumCell::Existing(w), QuantumCell::Existing(h));
         }
         Ok(FuzzyCommitmentResult {
             assigned_commitment,
             assigned_feature_hash: assigned_hash_result.output_bytes,
-            assigned_randomness: r_bytes,
-            assigned_randomness_len: assigned_hash_result.input_len,
-            randomness_value: randomness_bytes,
+            assigned_word: word_bytes,
+            assigned_word_len: assigned_hash_result.input_len,
+            word_value: word_values,
         })
     }
 
