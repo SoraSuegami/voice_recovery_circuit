@@ -24,24 +24,26 @@ pub struct FuzzyCommitmentResult<'a, F: Field> {
 pub struct FuzzyCommitmentConfig<F: Field> {
     pub(crate) sha256_config: Sha256DynamicConfig<F>,
     error_threshold: u64,
+    pub(crate) word_size: usize,
 }
 
 impl<F: Field> FuzzyCommitmentConfig<F> {
     pub fn configure(
         meta: &mut ConstraintSystem<F>,
-        max_byte_size: usize,
         num_sha2_compression_per_column: usize,
         range_config: RangeConfig<F>,
         error_threshold: u64,
+        word_size: usize,
     ) -> Self {
         let sha256_comp_configs = (0..num_sha2_compression_per_column)
             .map(|_| Sha256CompressionConfig::configure(meta))
             .collect();
         let sha256_config =
-            Sha256DynamicConfig::construct(sha256_comp_configs, max_byte_size, range_config);
+            Sha256DynamicConfig::construct(sha256_comp_configs, word_size + 64, range_config);
         Self {
             sha256_config,
             error_threshold,
+            word_size,
         }
     }
 
@@ -52,8 +54,9 @@ impl<F: Field> FuzzyCommitmentConfig<F> {
         errors: &[u8],
         commitment: &[u8],
     ) -> Result<FuzzyCommitmentResult<'a, F>, Error> {
-        assert_eq!(features.len(), errors.len());
-        assert_eq!(errors.len(), commitment.len());
+        assert_eq!(features.len(), self.word_size);
+        assert_eq!(errors.len(), self.word_size);
+        assert_eq!(commitment.len(), self.word_size);
         let range = self.range();
         let gate = self.gate();
         let assigned_features = features

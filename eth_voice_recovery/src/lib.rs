@@ -1,7 +1,7 @@
 mod fuzzy;
 use std::fs::File;
 use std::marker::PhantomData;
-
+mod helper;
 use crate::fuzzy::*;
 use halo2_base::halo2_proofs::circuit::{AssignedCell, Cell, Region, SimpleFloorPlanner, Value};
 use halo2_base::halo2_proofs::plonk::{Circuit, Column, ConstraintSystem, Instance};
@@ -16,7 +16,9 @@ use halo2_base::{
     ContextParams, SKIP_FIRST_PASS,
 };
 use halo2_base::{AssignedValue, QuantumCell};
-use halo2_dynamic_sha256::{Field, Sha256CompressionConfig, Sha256DynamicConfig};
+use halo2_dynamic_sha256::{
+    AssignedHashResult, Field, Sha256CompressionConfig, Sha256DynamicConfig,
+};
 use itertools::Itertools;
 use serde_json;
 use snark_verifier_sdk::CircuitExt;
@@ -34,31 +36,37 @@ pub struct VoiceRecoverResult<'a, F: Field> {
 pub struct VoiceRecoverConfig<F: Field> {
     fuzzy_commitment: FuzzyCommitmentConfig<F>,
     msg_hash_sha256_config: Sha256DynamicConfig<F>,
+    max_msg_size: usize,
 }
 
 impl<F: Field> VoiceRecoverConfig<F> {
     pub fn configure(
         meta: &mut ConstraintSystem<F>,
-        max_byte_size: usize,
+        word_size: usize,
+        max_msg_size: usize,
         num_sha2_compression_per_column: usize,
         range_config: RangeConfig<F>,
         error_threshold: u64,
     ) -> Self {
         let fuzzy_commitment = FuzzyCommitmentConfig::<F>::configure(
             meta,
-            max_byte_size,
             num_sha2_compression_per_column,
             range_config.clone(),
             error_threshold,
+            word_size,
         );
         let sha256_comp_configs = (0..num_sha2_compression_per_column)
             .map(|_| Sha256CompressionConfig::configure(meta))
             .collect();
-        let msg_hash_sha256_config =
-            Sha256DynamicConfig::construct(sha256_comp_configs, max_byte_size, range_config);
+        let msg_hash_sha256_config = Sha256DynamicConfig::construct(
+            sha256_comp_configs,
+            word_size + max_msg_size + 64,
+            range_config,
+        );
         Self {
             fuzzy_commitment,
             msg_hash_sha256_config,
+            max_msg_size,
         }
     }
 
@@ -73,33 +81,70 @@ impl<F: Field> VoiceRecoverConfig<F> {
         let fuzzy_result = self
             .fuzzy_commitment
             .recover_and_hash(ctx, features, errors, commitment)?;
+        let mut message_ext = message.to_vec();
+        message_ext.append(&mut vec![0; self.max_msg_size - message.len()]);
         let msg_hash_input_bytes = vec![fuzzy_result.word_value, message.to_vec()].concat();
         let msg_hash_result = self
             .msg_hash_sha256_config
             .digest(ctx, &msg_hash_input_bytes)?;
         let gate = self.gate();
-        let assigned_message = message
+        let assigned_message = message_ext
             .into_iter()
-            .map(|val| gate.load_witness(ctx, Value::known(F::from(*val as u64))))
+            .map(|val| gate.load_witness(ctx, Value::known(F::from(val as u64))))
             .collect_vec();
-        let assigned_msg_hash_input =
-            vec![fuzzy_result.assigned_word, assigned_message.clone()].concat();
-        for (byte0, byte1) in msg_hash_result
-            .input_bytes
-            .iter()
-            .zip(assigned_msg_hash_input.iter())
-        {
+        for idx in 0..self.fuzzy_commitment.word_size {
             gate.assert_equal(
                 ctx,
-                QuantumCell::Existing(&byte0),
-                QuantumCell::Existing(&byte1),
+                QuantumCell::Existing(&msg_hash_result.input_bytes[idx]),
+                QuantumCell::Existing(&fuzzy_result.assigned_word[idx]),
             );
         }
+        let range = self.range();
         let msg_len = gate.sub(
             ctx,
             QuantumCell::Existing(&msg_hash_result.input_len),
             QuantumCell::Existing(&fuzzy_result.assigned_word_len),
         );
+        for idx in 0..self.max_msg_size {
+            let is_enable = range.is_less_than(
+                ctx,
+                QuantumCell::Constant(F::from(idx as u64)),
+                QuantumCell::Existing(&msg_len),
+                64,
+            );
+            let enabled_byte0 = gate.mul(
+                ctx,
+                QuantumCell::Existing(&is_enable),
+                QuantumCell::Existing(
+                    &msg_hash_result.input_bytes[self.fuzzy_commitment.word_size + idx],
+                ),
+            );
+            let enabled_byte1 = gate.mul(
+                ctx,
+                QuantumCell::Existing(&is_enable),
+                QuantumCell::Existing(&assigned_message[idx]),
+            );
+            gate.assert_equal(
+                ctx,
+                QuantumCell::Existing(&enabled_byte0),
+                QuantumCell::Existing(&enabled_byte1),
+            );
+        }
+        // let assigned_msg_hash_input =
+        //     vec![fuzzy_result.assigned_word, assigned_message.clone()].concat();
+        // for (byte0, byte1) in msg_hash_result
+        //     .input_bytes
+        //     .iter()
+        //     .zip(assigned_msg_hash_input.iter())
+        // {
+        //     // let enabled_byte0 = gate.mul(ctx, QuantumCell::Existing(byte0), QuantumCell::Existing(&msg_hash_result.))
+        //     // gate.assert_equal(
+        //     //     ctx,
+        //     //     QuantumCell::Existing(&byte0),
+        //     //     QuantumCell::Existing(&byte1),
+        //     // );
+        // }
+
         Ok(VoiceRecoverResult {
             assigned_commitment: fuzzy_result.assigned_commitment,
             assigned_feature_hash: fuzzy_result.assigned_feature_hash,
@@ -135,8 +180,9 @@ pub struct DefaultVoiceRecoverConfigParams {
     pub num_fixed: usize,
     pub lookup_bits: usize,
     pub num_sha2_compression_per_column: usize,
-    pub msg_max_byte_size: usize,
     pub error_threshold: u64,
+    pub word_size: usize,
+    pub max_msg_size: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -185,7 +231,8 @@ impl<F: Field> Circuit<F> for DefaultVoiceRecoverCircuit<F> {
         );
         let inner = VoiceRecoverConfig::configure(
             meta,
-            params.msg_max_byte_size,
+            params.word_size,
+            params.max_msg_size,
             params.num_sha2_compression_per_column,
             range_config,
             params.error_threshold,
@@ -271,9 +318,9 @@ impl<F: Field> Circuit<F> for DefaultVoiceRecoverCircuit<F> {
         for (idx, cell) in feature_hash_cell.into_iter().enumerate() {
             layouter.constrain_instance(cell, config.feature_hash_public, idx)?;
         }
-        for (idx, cell) in message_cell.into_iter().enumerate() {
-            layouter.constrain_instance(cell, config.message_public, idx)?;
-        }
+        // for (idx, cell) in message_cell.into_iter().enumerate() {
+        //     layouter.constrain_instance(cell, config.message_public, idx)?;
+        // }
         for (idx, cell) in message_hash_cell.into_iter().enumerate() {
             layouter.constrain_instance(cell, config.message_hash_public, idx)?;
         }
@@ -354,7 +401,7 @@ mod test {
                     vec![
                         commitment_public,
                         feature_hash_public,
-                        message_public,
+                        vec![],
                         message_hash_public,
                     ],
                 )
