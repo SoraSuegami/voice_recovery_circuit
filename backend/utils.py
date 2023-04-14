@@ -1,4 +1,5 @@
 import bchlib
+import hashlib
 import os
 import random
 
@@ -6,6 +7,7 @@ import random
 def bch_error_correction(packet):
     '''
     BCH符号による誤り訂正
+
     Parameters
     ----------
     packet : bytearray
@@ -45,3 +47,25 @@ def test_bch():
     print(type(packet))
 
     assert packet == bch_error_correction(packet)
+
+def xor(a, b):
+    '''
+    排他的論理和を取る。
+    
+    Parameters
+    ----------
+    a : bytearray
+    b : bytearray
+    '''
+    result = bytearray([x ^ y for x, y in zip(a, b)])
+    return result
+
+def hash(data):
+    '''
+    ハッシュ関数(SHA256)を取る。
+
+    Parameters
+    ----------
+    data : bytearray
+    '''
+    return hashlib.sha256(data).digest() 
