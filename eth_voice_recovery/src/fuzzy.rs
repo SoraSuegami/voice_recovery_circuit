@@ -37,11 +37,8 @@ impl<F: Field> FuzzyCommitmentConfig<F> {
         let sha256_comp_configs = (0..num_sha2_compression_per_column)
             .map(|_| Sha256CompressionConfig::configure(meta))
             .collect();
-        let sha256_config = Sha256DynamicConfig::construct(
-            sha256_comp_configs,
-            max_byte_size,
-            range_config.clone(),
-        );
+        let sha256_config =
+            Sha256DynamicConfig::construct(sha256_comp_configs, max_byte_size, range_config);
         Self {
             sha256_config,
             error_threshold,
@@ -49,12 +46,14 @@ impl<F: Field> FuzzyCommitmentConfig<F> {
     }
 
     pub fn recover_and_hash<'v: 'a, 'a>(
-        &'v self,
+        &self,
         ctx: &mut Context<'v, F>,
         features: &[u8],
         errors: &[u8],
         commitment: &[u8],
     ) -> Result<FuzzyCommitmentResult<'a, F>, Error> {
+        assert_eq!(features.len(), errors.len());
+        assert_eq!(errors.len(), commitment.len());
         let range = self.range();
         let gate = self.gate();
         let assigned_features = features
@@ -102,7 +101,7 @@ impl<F: Field> FuzzyCommitmentConfig<F> {
             .collect_vec();
         // 3. |e| < t
         let mut e_weight = gate.load_zero(ctx);
-        for bit in errors_bits.iter() {
+        for (idx, bit) in errors_bits.iter().enumerate() {
             e_weight = gate.add(
                 ctx,
                 QuantumCell::Existing(&e_weight),
@@ -149,7 +148,7 @@ impl<F: Field> FuzzyCommitmentConfig<F> {
     }
 
     fn bytes2bits<'v: 'a, 'a>(
-        &'v self,
+        &self,
         ctx: &mut Context<'v, F>,
         assigned_bytes: &[AssignedValue<'a, F>],
     ) -> Vec<AssignedValue<'a, F>> {
@@ -163,7 +162,7 @@ impl<F: Field> FuzzyCommitmentConfig<F> {
     }
 
     fn xor<'v: 'a, 'a>(
-        &'v self,
+        &self,
         ctx: &mut Context<'v, F>,
         a: &AssignedValue<'a, F>,
         b: &AssignedValue<'a, F>,
