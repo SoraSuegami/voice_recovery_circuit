@@ -4,6 +4,7 @@ from .RawNet3.models import RawNet3
 from .RawNet3.infererence import extract_speaker_embd
 import torch
 import numpy as np
+import soundfile
 
 def calc_feat_vec(input_wav_path):
     """
@@ -33,11 +34,13 @@ def calc_feat_vec(input_wav_path):
     torch_model.load_state_dict(torch.load(path_pt, map_location=lambda storage, loc: storage)["model"])
     torch_model.eval()
 
+    audio, sample_rate = soundfile.read(input_wav_path)
 
     # 3. 音声データを特徴量に変換する
     output = extract_speaker_embd(
             torch_model,
-            fn=input_wav_path,
+            audio,
+            sample_rate,
             n_samples=48000,
             n_segments=n_segments,
             gpu=gpu,

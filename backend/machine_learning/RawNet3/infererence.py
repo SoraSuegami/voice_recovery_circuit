@@ -3,16 +3,15 @@ import itertools
 import os
 import sys
 from typing import Dict
-
 import numpy as np
-import soundfile as sf
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
+import soundfile
 
-from .models.RawNet3 import RawNet3
-from .models.RawNetBasicBlock import Bottle2neck
-from .utils import tuneThresholdfromScore, ComputeErrorRates, ComputeMinDcf
+from models.RawNet3 import RawNet3
+from models.RawNetBasicBlock import Bottle2neck
+from utils import tuneThresholdfromScore, ComputeErrorRates, ComputeMinDcf
 
 
 def main(args: Dict) -> None:
@@ -45,10 +44,13 @@ def main(args: Dict) -> None:
         model = model.to("cuda")
         gpu = True
 
+    audio, sample_rate = soundfile.read(args.input)
+
     if args.inference_utterance:
         output = extract_speaker_embd(
             model,
-            fn=args.input,
+            audio,
+            sample_rate,
             n_samples=48000,
             n_segments=args.n_segments,
             gpu=gpu,
@@ -110,9 +112,8 @@ def main(args: Dict) -> None:
 
 
 def extract_speaker_embd(
-    model, fn: str, n_samples: int, n_segments: int = 10, gpu: bool = False
+    model, audio: np.ndarray,sample_rate: int, n_samples: int, n_segments: int = 10, gpu: bool = False
 ) -> np.ndarray:
-    audio, sample_rate = sf.read(fn)
     if len(audio.shape) > 1:
         raise ValueError(
             f"RawNet3 supports mono input only. Input data has a shape of {audio.shape}."
@@ -166,7 +167,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--out_dir", type=str, default="./out.npy")
     parser.add_argument(
-        "--n_segments",
+        "--n_segments", 
         type=int,
         default=10,
         help="number of segments to make using each utterance",
