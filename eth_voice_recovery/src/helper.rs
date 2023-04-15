@@ -207,6 +207,7 @@ pub fn evm_prove(
     pk_path: &str,
     input_path: &str,
     proof_path: &str,
+    public_input_path: &str,
 ) -> Result<(), Error> {
     set_var(VOICE_RECOVER_CONFIG_ENV, circuit_config);
     let params = {
@@ -231,7 +232,7 @@ pub fn evm_prove(
     let errors = hex::decode(&input.errors[2..]).unwrap();
     let commitment = hex::decode(&input.commitment[2..]).unwrap();
     let message = input.message.as_bytes().to_vec();
-    let circuit = DefaultVoiceRecoverCircuit {
+    let circuit = DefaultVoiceRecoverCircuit::<Fr> {
         features,
         errors,
         commitment,
@@ -239,6 +240,49 @@ pub fn evm_prove(
         _f: PhantomData,
     };
     let instances = circuit.instances();
+    let public_input = DefaultVoiceRecoverCircuitPublicInput {
+        commitment: format!(
+            "0x{}",
+            hex::encode(
+                instances[0]
+                    .iter()
+                    .map(|v| v.get_lower_128() as u8)
+                    .collect_vec()
+            )
+            .as_str(),
+        ),
+        feature_hash: format!(
+            "0x{}",
+            hex::encode(
+                instances[1]
+                    .iter()
+                    .map(|v| v.get_lower_128() as u8)
+                    .collect_vec()
+            )
+            .as_str(),
+        ),
+        message: format!(
+            "{}",
+            String::from_utf8(
+                instances[2]
+                    .iter()
+                    .map(|v| v.get_lower_128() as u8)
+                    .collect_vec(),
+            )
+            .unwrap()
+            .as_str()
+        ),
+        message_hash: format!(
+            "0x{}",
+            hex::encode(
+                instances[3]
+                    .iter()
+                    .map(|v| v.get_lower_128() as u8)
+                    .collect_vec(),
+            )
+            .as_str()
+        ),
+    };
     let proof = gen_evm_proof_gwc(&params, &pk, circuit, instances, &mut OsRng);
     {
         let f = File::create(proof_path).unwrap();
@@ -246,6 +290,12 @@ pub fn evm_prove(
         writer.write_all(&proof).unwrap();
         writer.flush().unwrap();
     };
+    {
+        let public_input_str = serde_json::to_string(&public_input).unwrap();
+        let mut file = File::create(public_input_path)?;
+        write!(file, "{}", public_input_str).unwrap();
+        file.flush().unwrap();
+    }
     Ok(())
 }
 

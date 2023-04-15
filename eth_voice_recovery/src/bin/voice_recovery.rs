@@ -54,6 +54,26 @@ enum Commands {
         #[arg(long)]
         public_input_path: String,
     },
+    EvmProve {
+        /// setup parameter file
+        #[arg(short, long)]
+        params_path: String,
+        /// circuit configure file
+        #[arg(short, long)]
+        circuit_config: String,
+        /// proving key file path
+        #[arg(long)]
+        pk_path: String,
+        /// input file path
+        #[arg(long)]
+        input_path: String,
+        /// proof file path
+        #[arg(long)]
+        proof_path: String,
+        /// public input file path
+        #[arg(long)]
+        public_input_path: String,
+    },
     Verify {
         /// setup parameter file
         #[arg(short, long)]
@@ -70,6 +90,20 @@ enum Commands {
         /// proof file path
         #[arg(long)]
         proof_path: String,
+    },
+    GenEvmVerifier {
+        /// setup parameter file
+        #[arg(short, long)]
+        params_path: String,
+        /// circuit configure file
+        #[arg(short, long)]
+        circuit_config: String,
+        /// verifying key file path
+        #[arg(long)]
+        vk_path: String,
+        /// verifier code path
+        #[arg(long)]
+        code_path: String,
     },
 }
 
@@ -99,6 +133,22 @@ fn main() {
             &public_input_path,
         )
         .unwrap(),
+        Commands::EvmProve {
+            params_path,
+            circuit_config,
+            pk_path,
+            input_path,
+            proof_path,
+            public_input_path,
+        } => evm_prove(
+            &params_path,
+            &circuit_config,
+            &pk_path,
+            &input_path,
+            &proof_path,
+            &public_input_path,
+        )
+        .unwrap(),
         Commands::Verify {
             params_path,
             circuit_config,
@@ -113,5 +163,11 @@ fn main() {
             &proof_path,
         )
         .unwrap(),
+        Commands::GenEvmVerifier {
+            params_path,
+            circuit_config,
+            vk_path,
+            code_path,
+        } => gen_evm_verifier(&params_path, &circuit_config, &vk_path, &code_path).unwrap(),
     }
 }
