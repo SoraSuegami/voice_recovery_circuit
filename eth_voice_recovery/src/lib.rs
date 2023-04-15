@@ -22,6 +22,7 @@ use halo2_dynamic_sha256::{
 pub use helper::*;
 use itertools::Itertools;
 use serde_json;
+use sha2::{Digest, Sha256};
 use snark_verifier_sdk::CircuitExt;
 
 #[derive(Debug, Clone)]
@@ -322,6 +323,52 @@ impl<F: Field> Circuit<F> for DefaultVoiceRecoverCircuit<F> {
     }
 }
 
+impl<F: Field> CircuitExt<F> for DefaultVoiceRecoverCircuit<F> {
+    fn num_instance(&self) -> Vec<usize> {
+        let params = Self::read_config_params();
+        vec![params.word_size, 32, params.max_msg_size, 32]
+    }
+
+    fn instances(&self) -> Vec<Vec<F>> {
+        let commitment_public = self
+            .commitment
+            .iter()
+            .map(|byte| F::from(*byte as u64))
+            .collect_vec();
+        let word = self
+            .features
+            .iter()
+            .zip(self.commitment.iter())
+            .zip(self.errors.iter())
+            .map(|((f, c), e)| f ^ c ^ e)
+            .collect_vec();
+        let feature_hash = Sha256::digest(&word).to_vec();
+        println!("feature_hash {}", hex::encode(&feature_hash));
+        let feature_hash_public = feature_hash
+            .into_iter()
+            .map(|byte| F::from(byte as u64))
+            .collect_vec();
+        let message_public = self
+            .message
+            .iter()
+            .map(|byte| F::from(*byte as u64))
+            .collect_vec();
+        let message_hash =
+            Sha256::digest(&[word.to_vec(), self.message.to_vec()].concat()).to_vec();
+        println!("message_hash {}", hex::encode(&message_hash));
+        let message_hash_public = message_hash
+            .iter()
+            .map(|byte| F::from(*byte as u64))
+            .collect_vec();
+        vec![
+            commitment_public,
+            feature_hash_public,
+            message_public,
+            message_hash_public,
+        ]
+    }
+}
+
 impl<F: Field> DefaultVoiceRecoverCircuit<F> {
     pub fn read_config_params() -> DefaultVoiceRecoverConfigParams {
         let path = std::env::var(VOICE_RECOVER_CONFIG_ENV)
@@ -367,27 +414,6 @@ mod test {
                 let commitment_bytes = bool_slice_to_le_bytes(&commitment_bits);
                 println!("commitment_bytes {}", hex::encode(&commitment_bytes));
                 let message = b"test".to_vec();
-                let commitment_public = commitment_bytes
-                    .iter()
-                    .map(|byte| Fr::from(*byte as u64))
-                    .collect_vec();
-                let feature_hash = Sha256::digest(&word_bytes).to_vec();
-                println!("feature_hash {}", hex::encode(&feature_hash));
-                let feature_hash_public = feature_hash
-                    .into_iter()
-                    .map(|byte| Fr::from(byte as u64))
-                    .collect_vec();
-                let message_public = message
-                    .iter()
-                    .map(|byte| Fr::from(*byte as u64))
-                    .collect_vec();
-                let message_hash =
-                    Sha256::digest(&[word_bytes.to_vec(), message.to_vec()].concat()).to_vec();
-                println!("message_hash {}", hex::encode(&message_hash));
-                let message_hash_public = message_hash
-                    .iter()
-                    .map(|byte| Fr::from(*byte as u64))
-                    .collect_vec();
                 let circuit = DefaultVoiceRecoverCircuit::<Fr> {
                     features: features_bytes,
                     errors: error_bytes,
@@ -395,17 +421,8 @@ mod test {
                     message,
                     _f: PhantomData,
                 };
-                let prover = MockProver::run(
-                    13,
-                    &circuit,
-                    vec![
-                        commitment_public,
-                        feature_hash_public,
-                        message_public,
-                        message_hash_public,
-                    ],
-                )
-                .unwrap();
+                let instance = circuit.instances();
+                let prover = MockProver::run(13, &circuit, instance).unwrap();
                 assert_eq!(prover.verify(), Ok(()));
             },
         );

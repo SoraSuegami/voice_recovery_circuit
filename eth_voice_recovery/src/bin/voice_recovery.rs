@@ -50,6 +50,9 @@ enum Commands {
         /// proof file path
         #[arg(long)]
         proof_path: String,
+        /// public input file path
+        #[arg(long)]
+        public_input_path: String,
     },
     Verify {
         /// setup parameter file
@@ -86,12 +89,14 @@ fn main() {
             pk_path,
             input_path,
             proof_path,
+            public_input_path,
         } => prove(
             &params_path,
             &circuit_config,
             &pk_path,
             &input_path,
             &proof_path,
+            &public_input_path,
         )
         .unwrap(),
         Commands::Verify {
