@@ -422,7 +422,7 @@ mod test {
                     _f: PhantomData,
                 };
                 let instance = circuit.instances();
-                let prover = MockProver::run(13, &circuit, instance).unwrap();
+                let prover = MockProver::run(15, &circuit, instance).unwrap();
                 assert_eq!(prover.verify(), Ok(()));
             },
         );
