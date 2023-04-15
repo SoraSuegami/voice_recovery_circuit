@@ -1,49 +1,83 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./IZKPSnarkVerifier.sol";
+import "./Verifier.sol";
+import "./ENS.sol";
 
-contract VoiceAuth {
+contract VoiceKeyRecover is Verifier {
+    using ENSNamehash for bytes;
     struct VoiceData {
-        string currentENS;
-        bytes32 ZKPCommitment;
-        bytes voiceFeatures;
+        address owner;
+        bytes32 featureHash;
+        bytes commitment;
     }
 
-    IZKPSnarkVerifier public zkpVerifier;
-    mapping(address => VoiceData) public voiceDataMapping;
+    mapping(address => bool) public isRegistered;
+    mapping(address => VoiceData) public voiceDataOfWallet;
     mapping(bytes32 => bool) public usedMessageHashes;
 
-    constructor(address _zkpVerifier) {
-        zkpVerifier = IZKPSnarkVerifier(_zkpVerifier);
+    ENS ens = ENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
+
+    constructor(
+        address _yulVerifier,
+        uint _wordSize,
+        uint _maxMsgSize
+    ) Verifier(_yulVerifier, _wordSize, _maxMsgSize) {}
+
+    function getOwner() public view returns (address) {
+        require(isRegistered[msg.sender], "not registered");
+        return voiceDataOfWallet[msg.sender].owner;
     }
 
     function register(
-        address wallet,
-        string memory currentENS,
-        bytes32 ZKPCommitment,
-        bytes memory voiceFeatures
+        address walletAddr,
+        bytes32 featureHash,
+        bytes calldata commitment
     ) public {
-        voiceDataMapping[wallet] = VoiceData(currentENS, ZKPCommitment, voiceFeatures);
+        require(!isRegistered[walletAddr], "already registered");
+        voiceDataOfWallet[walletAddr] = VoiceData(
+            msg.sender,
+            featureHash,
+            commitment
+        );
     }
 
     function recover(
-        address wallet,
-        string memory newENS,
-        bytes memory zkProof,
-        bytes32 messageHash
+        address walletAddr,
+        string calldata oldENS,
+        string calldata newENS,
+        bytes32 messageHash,
+        bytes calldata proof
     ) public {
+        require(isRegistered[walletAddr], "The wallet is not registered");
         require(!usedMessageHashes[messageHash], "Message hash already used");
-
-        VoiceData storage voiceData = voiceDataMapping[wallet];
-        bytes32[] memory publicInputs = new bytes32[](3);
-        publicInputs[0] = voiceData.ZKPCommitment;
-        publicInputs[1] = keccak256(abi.encodePacked(newENS));
-        publicInputs[2] = messageHash;
-
-        require(zkpVerifier.verifyProof(zkProof, publicInputs), "ZKP verification failed");
-
+        VoiceData memory voiceData = voiceDataOfWallet[walletAddr];
+        address oldOwner = voiceData.owner;
+        require(oldOwner == resolveENS(oldENS), "Invalid old ENS");
+        string memory message = string.concat(
+            "Recover the ENS ",
+            oldENS,
+            " to a new ENS ",
+            newENS
+        );
+        require(
+            verify(
+                voiceData.commitment,
+                voiceData.featureHash,
+                bytes(message),
+                messageHash,
+                proof
+            ),
+            "invalid proof"
+        );
         usedMessageHashes[messageHash] = true;
-        voiceData.currentENS = newENS;
+        address newOwner = resolveENS(newENS);
+        voiceDataOfWallet[walletAddr].owner = newOwner;
+    }
+
+    function resolveENS(string calldata ensName) public view returns (address) {
+        bytes32 node = bytes(ensName).namehash();
+        Resolver resolver = ens.resolver(node);
+        return resolver.addr(node);
     }
 }
