@@ -131,14 +131,14 @@ def recover(feat_vec, c, h_w, m):
     feat_vec : bytearray
     c : bytearray
     h_w : 
-    m : stirng?
+    m : stirng
     '''
 
     w1 = xor(feat_vec, c)
     w = bch_error_correction(w1)
 
     e = xor(w, w1)
-    
-    h_m_w = hash(m+w)
+
+    h_m_w = hash(m.encode()+w)
 
     return e, h_m_w
