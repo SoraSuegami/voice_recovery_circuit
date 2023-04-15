@@ -73,6 +73,23 @@ contract VoiceKeyRecover is VerifierWrapper {
         voiceDataOfWallet[walletAddr].owner = newOwner;
     }
 
+    function refreshVoiceData(
+        address walletAddr,
+        bytes32 featureHash,
+        bytes32 commitmentHash,
+        bytes calldata commitment
+    ) public {
+        require(isRegistered[walletAddr], "The wallet is not registered");
+        VoiceData memory voiceData = voiceDataOfWallet[walletAddr];
+        require(
+            msg.sender == voiceData.owner,
+            "The owner can call the refresh"
+        );
+        voiceDataOfWallet[walletAddr].featureHash = featureHash;
+        voiceDataOfWallet[walletAddr].commitmentHash = commitmentHash;
+        voiceDataOfWallet[walletAddr].commitment = commitment;
+    }
+
     function getMessageOfRecover(
         address walletAddr
     ) public view returns (bytes memory) {
