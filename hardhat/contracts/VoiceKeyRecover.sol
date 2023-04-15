@@ -56,7 +56,7 @@ contract VoiceKeyRecover is Verifier {
         require(!usedMessageHashes[messageHash], "Message hash already used");
         VoiceData memory voiceData = voiceDataOfWallet[walletAddr];
         address oldOwner = voiceData.owner;
-        require(oldOwner == resolveENS(oldENS), "Invalid old ENS");
+        // require(oldOwner == resolveENS(oldENS), "Invalid old ENS");
         string memory message = string.concat(
             "Recover the ENS ",
             oldENS,
@@ -74,7 +74,8 @@ contract VoiceKeyRecover is Verifier {
             "invalid proof"
         );
         usedMessageHashes[messageHash] = true;
-        address newOwner = resolveENS(newENS);
+        // address newOwner = resolveENS(newENS);
+        address newOwner = msg.sender;
         voiceDataOfWallet[walletAddr].owner = newOwner;
     }
 

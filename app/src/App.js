@@ -12,6 +12,7 @@ const apiUrl = "http://127.0.0.1:5000";
 function App() {
   const [vk, setVk] = useState(null);
   const [sender, setSender] = useState(null);
+  console.log("sender: ", sender)
 
   useEffect(() => {
     (async () => {
@@ -23,11 +24,12 @@ function App() {
           provider = ethers.getDefaultProvider();
         } else {
           provider = new ethers.providers.Web3Provider(window.ethereum);
-          signer = await provider.getSigner();
-          setSender(signer.address);
+          await provider.send('eth_requestAccounts', [])
+          signer = provider.getSigner();
+          setSender(await signer.getAddress());
         }
-        console.log(VoiceKeyRecovery.abi)
         const vk = new ethers.Contract(contractAddress, VoiceKeyRecovery.abi, signer);
+        console.log(VoiceKeyRecovery.abi)
         setVk(vk);
         console.log("initialized!")
       } catch (err) {
@@ -43,9 +45,10 @@ function App() {
     const response = await fetch(url, { method: "POST", body: formData });
     const data = await response.json();
 
-    console.log(vk);
+    // console.log(vk);
     if (vk) {
-      await vk.register(sender, data.hash_ecc, data.feat_xoc_ecc);
+      // console.log("sender: ", sender, "hash_ecc: ", data.hash_ecc, "feat_xoc_ecc: ", data.feat_xor_ecc);
+      await vk.register(sender, data.hash_ecc, data.feat_xor_ecc);
     } else {
       console.error("VoiceKeyRecover contract not initialized yet");
     }
