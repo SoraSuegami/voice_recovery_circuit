@@ -18,12 +18,17 @@ use hex;
 use pyo3::exceptions::{PyIOError, PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
+use snark_verifier_sdk::evm::encode_calldata;
 
 #[pyfunction]
 pub fn poseidon_hash(input_hex: String) -> PyResult<String> {
     let input = hex::decode(&input_hex[2..]).expect("invalid hex input");
     let out_fr = eth_voice_recovery::poseidon_circuit::poseidon_hash(&input);
-    Ok("0x".to_string() + &hex::encode(out_fr.to_bytes()))
+    let out_hex = format!(
+        "0x{}",
+        hex::encode(encode_calldata(&[vec![out_fr]], &[])).as_str(),
+    );
+    Ok(out_hex)
 }
 
 #[pyfunction]
