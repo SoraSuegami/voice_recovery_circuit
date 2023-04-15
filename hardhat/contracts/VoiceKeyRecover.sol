@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.4;
 
 import "./Verifier.sol";
 import "./ENS.sol";
@@ -15,14 +15,17 @@ contract VoiceKeyRecover is Verifier {
     mapping(address => bool) public isRegistered;
     mapping(address => VoiceData) public voiceDataOfWallet;
     mapping(bytes32 => bool) public usedMessageHashes;
-
-    ENS ens = ENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
+    ENS ens;
 
     constructor(
-        address _yulVerifier,
+        // address _yulVerifier,
+        address _ens,
         uint _wordSize,
         uint _maxMsgSize
-    ) Verifier(_yulVerifier, _wordSize, _maxMsgSize) {}
+    // ) Verifier(_yulVerifier, _wordSize, _maxMsgSize) {
+    ) Verifier(_wordSize, _maxMsgSize) {
+        ens = ENS(_ens);
+    }
 
     function getOwner() public view returns (address) {
         require(isRegistered[msg.sender], "not registered");
@@ -40,6 +43,7 @@ contract VoiceKeyRecover is Verifier {
             featureHash,
             commitment
         );
+        isRegistered[walletAddr] = true;
     }
 
     function recover(
@@ -53,7 +57,7 @@ contract VoiceKeyRecover is Verifier {
         require(!usedMessageHashes[messageHash], "Message hash already used");
         VoiceData memory voiceData = voiceDataOfWallet[walletAddr];
         address oldOwner = voiceData.owner;
-        require(oldOwner == resolveENS(oldENS), "Invalid old ENS");
+        // require(oldOwner == resolveENS(oldENS), "Invalid old ENS");
         string memory message = string.concat(
             "Recover the ENS ",
             oldENS,
@@ -71,7 +75,8 @@ contract VoiceKeyRecover is Verifier {
             "invalid proof"
         );
         usedMessageHashes[messageHash] = true;
-        address newOwner = resolveENS(newENS);
+        // address newOwner = resolveENS(newENS);
+        address newOwner = msg.sender;
         voiceDataOfWallet[walletAddr].owner = newOwner;
     }
 

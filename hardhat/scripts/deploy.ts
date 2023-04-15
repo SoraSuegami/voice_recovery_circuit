@@ -1,24 +1,30 @@
 import { ethers } from "hardhat";
-import * as fs from "fs/promises";
+import { ENS__factory } from "../typechain";
 
 async function main() {
-  const signer = (await ethers.getSigners())[0];
-  console.log(await signer.getBalance());
-  const yulVerifier = await fs.readFile("./test_data/verifier_code.txt");
-  const wordSize = 32;
-  const maxMsgSize = 64;
+  const accounts = await ethers.getSigners();
+  console.log('Account:', accounts[0].address);
 
-  // const factory = ethers.ContractFactory.fromSolidity(
-  //   { bytecode: yulVerifier, abi: [] },
-  //   signer
-  // );
-  // const contract = await factory.deploy({ gasLimit: 9000000000000000, gasPrice: 875000000 });
-  // await contract.deployed();
-  // console.log(contract.address);
-  const VerifierInternalFactory = await ethers.getContractFactory("VerifierInternal");
-  const VerifierInternal = await VerifierInternalFactory.deploy();
-  await VerifierInternal.deployed();
-  console.log(VerifierInternal.address);
+  // Get the ENS factory
+  const ENSDeployer = await ethers.getContractFactory('ENSDeployer');
+
+  // Deploy ENS
+  console.log('Deploying ENSDeployer...');
+  const ensDeployer = await ENSDeployer.deploy();
+  await ensDeployer.deployed();
+  console.log('ENSDeployer deployed to:', ensDeployer.address);
+
+  // console.log('Register ENS address...');
+  // const ensRegistryAddress = await ensDeployer.ens();
+  // const ensRegistry = ENS__factory.connect(ensRegistryAddress, accounts[0]);
+
+  // Deploy VoiceKeyRecover
+  console.log('Deploying VoiceKeyRecover...');
+  const voiceKeyRecover = await ethers.getContractFactory('VoiceKeyRecover');
+  // await voiceKeyRecover.deploy(dummyVerifierAddress, ensDeployer.address, 32, 64);
+  const vk = await voiceKeyRecover.deploy(ensDeployer.address, 32, 64);
+  console.log('VoiceKeyRecover deployed to:', vk.address);
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere

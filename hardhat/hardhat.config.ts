@@ -29,7 +29,11 @@ const config: HardhatUserConfig = {
     disambiguatePaths: false,
     runOnCompile: true,
     strict: true,
-  }
+  },
+  typechain: {
+    outDir: "typechain",
+    target: "ethers-v5",
+  },
 };
 
 export default config;

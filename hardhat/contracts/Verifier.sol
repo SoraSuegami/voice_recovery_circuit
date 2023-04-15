@@ -9,8 +9,9 @@ contract Verifier is VerifierInternal {
     uint wordSize;
     uint maxMsgSize;
 
-    constructor(address _yulVerifier, uint _wordSize, uint _maxMsgSize) {
-        yulVerifier = _yulVerifier;
+    // constructor(address _yulVerifier, uint _wordSize, uint _maxMsgSize) {
+    constructor(uint _wordSize, uint _maxMsgSize) {
+        // yulVerifier = _yulVerifier;
         wordSize = _wordSize;
         maxMsgSize = _maxMsgSize;
     }
