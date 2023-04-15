@@ -68,7 +68,7 @@ contract Verifier {
             mstore(add(transcript, 0xe0), mod(mload(add(pubInputs, 0xe0)), f_q))
             mstore(
                 add(transcript, 0x0),
-                12358111550043178518259213886218074335550007843026468564669891643576637359908
+                3907694789219417713638458061522832789804577909626513528440462423121969956560
             )
             {
                 let x := mload(add(proof, 0x20))
@@ -2607,11 +2607,11 @@ contract Verifier {
             )
             mstore(
                 add(transcript, 0x32c0),
-                0x0995f93a54b0e285369916a264f8c0ae83cc3518d6345ab15f039bb1bf42b11a
+                0x299d9ce751613516b369e0da6d9e846acbc978dbf81cecec5493771d04a4f6f7
             )
             mstore(
                 add(transcript, 0x32e0),
-                0x2abde374611d234f945070bb971bd2ba1bd5646fe88b26624a4a53947823106d
+                0x0d0811954ff78701c316f8ea7a67f3c150c7b94d526c94c6369b7125f07b047d
             )
             mstore(add(transcript, 0x3300), mload(add(transcript, 0x27c0)))
             success := and(
@@ -2648,11 +2648,11 @@ contract Verifier {
             )
             mstore(
                 add(transcript, 0x33a0),
-                0x07f70134a46bee8e3af2e041b227b82910d50e5d1e5201a7ad5c117aa140c47b
+                0x0b60d87ca5611f77ad868da60249288be44f0202f94b901951c2f2349c067bf6
             )
             mstore(
                 add(transcript, 0x33c0),
-                0x15a2a99b119d10c38cd3e59076e6229b229849700bbbbefc0ba78b5b40e22439
+                0x00ef101175d1595dfaf100871194d2942d490213efdcd0c58ffa02f0de699953
             )
             mstore(add(transcript, 0x33e0), mload(add(transcript, 0x27e0)))
             success := and(
@@ -2689,11 +2689,11 @@ contract Verifier {
             )
             mstore(
                 add(transcript, 0x3480),
-                0x13eaa429a93802360d3caacadbfef206f830f6d99d1711ff0f7b9bfd57a2a59a
+                0x159e2c3732d08347e00f00ea8d3c6cbd2e54935b1683b9b2527b783bb5d6a449
             )
             mstore(
                 add(transcript, 0x34a0),
-                0x006b98dc9d8030d70a88db44b0577c46ae29021db5b61a224fd287b4f32bc29d
+                0x1818fdacaa625a783e96d4a8061670b069684c5591bf55502a763dfdd9dcd418
             )
             mstore(add(transcript, 0x34c0), mload(add(transcript, 0x2800)))
             success := and(
@@ -2730,11 +2730,11 @@ contract Verifier {
             )
             mstore(
                 add(transcript, 0x3560),
-                0x15a2ba003053e21561696aa11486d6d6971f080296124435bdd92f9c47e0251b
+                0x17fbf17c25db2f82556849efc1b18644854b4f315d3eb5df4ecd5dc359d51f59
             )
             mstore(
                 add(transcript, 0x3580),
-                0x09d27c24548e7af1ac99e4b3de2ff072710d18dabe754fed3ec16fec8f823608
+                0x2719e811211cbcc39a58ac7325a5ff37ec07a3da2acc37740e13826783890ecc
             )
             mstore(add(transcript, 0x35a0), mload(add(transcript, 0x2820)))
             success := and(
@@ -2771,11 +2771,11 @@ contract Verifier {
             )
             mstore(
                 add(transcript, 0x3640),
-                0x2f822012fe3f287ed55243bfaf1b10a645e2594e1a57a294a669aa1d8006e677
+                0x04bb7a8c55eb30db56958b1c49841c6462a272d1745fb0924202fc012142613e
             )
             mstore(
                 add(transcript, 0x3660),
-                0x1b79d5fc3f6d85ca366e491fe04d23b1a10d719d8f48e18e2f78aa16c46804e5
+                0x2668bff6ecfbac2f75b2d1d79ea86408ec7371800030059a4258145ffbe10fd6
             )
             mstore(add(transcript, 0x3680), mload(add(transcript, 0x2840)))
             success := and(
@@ -2812,11 +2812,11 @@ contract Verifier {
             )
             mstore(
                 add(transcript, 0x3720),
-                0x0edc13d4445da674079a8d70ec5780a2a8b661e084e87b3720f1f61f30c7a190
+                0x0e7071715f075a528133daf980b0990b0de228322149126dc3c22fe175d2d5ba
             )
             mstore(
                 add(transcript, 0x3740),
-                0x13a48652fd49d60374251fa0166d3399938f68d2769508abad8588de8a980f3c
+                0x1a2afb2d9f028099dbc4ee891fe6e0f389c8c4dfc805790a1b250f542eac7251
             )
             mstore(add(transcript, 0x3760), mload(add(transcript, 0x2860)))
             success := and(
@@ -2853,11 +2853,11 @@ contract Verifier {
             )
             mstore(
                 add(transcript, 0x3800),
-                0x16468a9cad37b40ae434b8735b65067af6dd8571f56151c599b856faef3531d1
+                0x2a794ea83b84e5f8b946156cbf30ab08ab08c2a809bfe7237c82bb5a5b849576
             )
             mstore(
                 add(transcript, 0x3820),
-                0x0e33db5f797bdc53032f11f163dd2927cbb96e589197943d10237de4196476d1
+                0x1f3a058a12e5004be8baa5536436028a4ad21dafa0b75eec980cf61e3cbcb2b8
             )
             mstore(add(transcript, 0x3840), mload(add(transcript, 0x2880)))
             success := and(
@@ -3404,19 +3404,19 @@ contract Verifier {
             mstore(add(transcript, 0x4600), mload(add(transcript, 0x44c0)))
             mstore(
                 add(transcript, 0x4620),
-                0x1a841de4ef28295bb0f595db8ba843466c05ba433095a9bf6603d334a58fa4a0
+                0x205e8c5a3122730ef3c743e70f78a443970f4b87f0754926ac188c3ed1e9206a
             )
             mstore(
                 add(transcript, 0x4640),
-                0x0ed2763108f401e9a91572f9a492ffff2c1c48e8230c2f39297a278ed1316bd5
+                0x17fc8832f64a50d68279fb0d5a2be171a3447e878aa1c5b5fc05fcc9d29206fb
             )
             mstore(
                 add(transcript, 0x4660),
-                0x24b642f23220c156d35570de68511f3a2540741cd5cd485ffc3e1ff3599c00f2
+                0x137158c3d8829884950ce98f64693b0e07ed2f7646cf6cca8396565259806e82
             )
             mstore(
                 add(transcript, 0x4680),
-                0x25cdb46289be9daf2bd56f895e4f15101e47481acaf36c393c08bd0de206ca05
+                0x09836d6724ae2af5ed6d7e958952633f5902a38ed8d671f0068b7521c30eb575
             )
             success := and(
                 eq(
