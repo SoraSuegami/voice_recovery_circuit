@@ -2,6 +2,8 @@ import bchlib
 import hashlib
 import os
 import random
+from machine_learning.speaker_recognition import calc_feat_vec
+import numpy as np
 
 # bch符号による誤り訂正
 def bch_error_correction(packet):
@@ -69,3 +71,52 @@ def hash(data):
     data : bytearray
     '''
     return hashlib.sha256(data).digest() 
+
+def padding(data, n):
+    '''
+    256ビットになるように0を追加する。
+
+    Parameters
+    ----------
+    data : bytearray
+    '''
+    padding_data = data.ljust(n, b'\x00')
+    return padding_data
+
+def fuzzy_commitment(feat_vec):
+    '''
+    特徴量ベクトルからh(w)とcを生成する。
+    
+    Parameters
+    ----------
+    feat_vec : bytearray
+    '''
+
+    # generate random vector
+    s = bytearray(os.urandom(32))
+
+    # create a bch object
+    BCH_POLYNOMIAL = 8219
+    BCH_BITS = 64 #誤り訂正可能なビット数
+    bch = bchlib.BCH(BCH_POLYNOMIAL, BCH_BITS)
+
+    ecc = bch.encode(s)
+    packet = s + ecc
+    print("packet is ",packet)
+    print(len(packet))
+    
+    feat_vec = padding(feat_vec, len(packet))
+
+    c = xor(feat_vec, packet)
+
+    h_w = hash(packet)
+
+    return c, h_w
+
+# #長さが256ビットの特徴ベクトルを生成
+# vec = np.random.randint(0, 2, 256)
+# #print(vec)
+# bin_vec = bytearray([x for x in vec])
+# print("bin_vec is ",bin_vec)
+# bin_vec = padding(bin_vec, 512)
+# print("padding bin_vec is ",bin_vec)
