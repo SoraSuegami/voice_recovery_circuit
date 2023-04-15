@@ -1,8 +1,8 @@
 mod fuzzy;
 use std::fs::File;
 use std::marker::PhantomData;
-mod helper;
-mod poseidon_circuit;
+pub mod helper;
+pub mod poseidon_circuit;
 use crate::fuzzy::*;
 use crate::poseidon_circuit::*;
 use halo2_base::halo2_proofs::circuit::{AssignedCell, Cell, Region, SimpleFloorPlanner, Value};
@@ -23,7 +23,7 @@ use halo2_base::{AssignedValue, QuantumCell};
 // use halo2_dynamic_sha256::{
 //     AssignedHashResult, Field, Sha256CompressionConfig, Sha256DynamicConfig,
 // };
-pub use helper::*;
+pub use crate::helper::*;
 use itertools::Itertools;
 use serde_json;
 // use sha2::{Digest, Sha256};

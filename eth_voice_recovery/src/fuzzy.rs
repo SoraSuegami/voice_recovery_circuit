@@ -11,9 +11,9 @@ use halo2_base::{
     AssignedValue, Context,
 };
 use halo2_base::{ContextParams, QuantumCell};
-use halo2_dynamic_sha256::{
-    Field, Sha256AssignedRows, Sha256CompressionConfig, Sha256DynamicConfig,
-};
+// use halo2_dynamic_sha256::{
+//     Field, Sha256AssignedRows, Sha256CompressionConfig, Sha256DynamicConfig,
+// };
 use itertools::Itertools;
 
 #[derive(Debug, Clone)]
@@ -39,12 +39,6 @@ impl FuzzyCommitmentConfig {
         error_threshold: u64,
         word_size: usize,
     ) -> Self {
-        // let sha256_comp_configs = (0..num_sha2_compression_per_column)
-        //     .map(|_| Sha256CompressionConfig::configure(meta))
-        //     .collect();
-        // let max_size = word_size + (64 - (word_size % 64));
-        // let sha256_config =
-        //     Sha256DynamicConfig::construct(sha256_comp_configs, max_size, range_config);
         Self {
             range_config,
             error_threshold,
@@ -125,17 +119,9 @@ impl FuzzyCommitmentConfig {
             .zip(commitment.iter())
             .map(|((f, e), c)| f ^ e ^ c)
             .collect_vec();
-        // let assigned_hash_result = self.sha256_config.digest(ctx, &word_values)?;
-        // let poseidon = PoseidonChipBn254_8_58::new(ctx, self.gate());
         let assigned_feature_hash =
             poseidon.hash_elements(ctx, self.gate(), &word_bytes)?.0[0].clone();
 
-        // for (w, h) in word_bytes
-        //     .iter()
-        //     .zip(assigned_hash_result.input_bytes.iter())
-        // {
-        //     gate.assert_equal(ctx, QuantumCell::Existing(w), QuantumCell::Existing(h));
-        // }
         Ok(FuzzyCommitmentResult {
             assigned_commitment,
             assigned_feature_hash,

@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["eth_voice_recovery"]
+members = ["eth_voice_recovery", "voice_recovery_python"]
 
 [patch."https://github.com/axiom-crypto/halo2-lib.git"]
 halo2-base = { version = "0.2.2", git = "https://github.com/SoraSuegami/halo2-lib.git" }
