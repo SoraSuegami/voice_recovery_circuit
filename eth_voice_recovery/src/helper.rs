@@ -5,6 +5,7 @@ use crate::{
 use clap::{Parser, Subcommand};
 use halo2_base::halo2_proofs::circuit::Value;
 use halo2_base::halo2_proofs::halo2curves::bn256::{Bn256, Fr, G1Affine};
+use halo2_base::halo2_proofs::halo2curves::FieldExt;
 use halo2_base::halo2_proofs::plonk::{
     create_proof, keygen_pk, keygen_vk, verify_proof, Error, ProvingKey, VerifyingKey,
 };
@@ -14,7 +15,8 @@ use halo2_base::halo2_proofs::poly::kzg::multiopen::{ProverGWC, VerifierGWC};
 use halo2_base::halo2_proofs::poly::kzg::strategy::SingleStrategy;
 use halo2_base::halo2_proofs::poly::VerificationStrategy;
 use halo2_base::halo2_proofs::transcript::{
-    Blake2bRead, Blake2bWrite, Challenge255, TranscriptReadBuffer, TranscriptWriterBuffer,
+    Blake2bRead, Blake2bWrite, Challenge255, TranscriptReadBuffer, TranscriptWrite,
+    TranscriptWriterBuffer,
 };
 use halo2_base::halo2_proofs::SerdeFormat;
 use hex;
@@ -25,6 +27,7 @@ use rand::rngs::OsRng;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use snark_verifier_sdk::evm::{gen_evm_proof_gwc, gen_evm_verifier_gwc};
 use snark_verifier_sdk::{gen_pk, CircuitExt, LIMBS};
 use std::env::set_var;
 use std::fs::{self, File};
@@ -91,6 +94,7 @@ pub fn prove(
     pk_path: &str,
     input_path: &str,
     proof_path: &str,
+    public_input_path: &str,
 ) -> Result<(), Error> {
     set_var(VOICE_RECOVER_CONFIG_ENV, circuit_config);
     let params = {
@@ -115,24 +119,6 @@ pub fn prove(
     let errors = hex::decode(&input.errors[2..]).unwrap();
     let commitment = hex::decode(&input.commitment[2..]).unwrap();
     let message = input.message.as_bytes().to_vec();
-    let commitment_public = commitment
-        .iter()
-        .map(|byte| Fr::from(*byte as u64))
-        .collect_vec();
-    let feature_hash = hex::decode(&input.feature_hash[2..]).unwrap();
-    let feature_hash_public = feature_hash
-        .into_iter()
-        .map(|byte| Fr::from(byte as u64))
-        .collect_vec();
-    let message_public = message
-        .iter()
-        .map(|byte| Fr::from(*byte as u64))
-        .collect_vec();
-    let message_hash = hex::decode(&input.message_hash[2..]).unwrap();
-    let message_hash_public = message_hash
-        .iter()
-        .map(|byte| Fr::from(*byte as u64))
-        .collect_vec();
     let circuit = DefaultVoiceRecoverCircuit {
         features,
         errors,
@@ -140,18 +126,17 @@ pub fn prove(
         message,
         _f: PhantomData,
     };
+    let instances = circuit.instances();
     let proof = {
         let mut transcript = Blake2bWrite::<_, G1Affine, Challenge255<_>>::init(vec![]);
         create_proof::<KZGCommitmentScheme<_>, ProverGWC<_>, _, _, _, _>(
             &params,
             &pk,
             &vec![circuit.clone()],
-            &[&[
-                commitment_public.as_slice(),
-                feature_hash_public.as_slice(),
-                message_public.as_slice(),
-                message_hash_public.as_slice(),
-            ]],
+            &[&instances
+                .iter()
+                .map(|instances| instances.as_slice())
+                .collect_vec()],
             OsRng,
             &mut transcript,
         )
@@ -164,6 +149,153 @@ pub fn prove(
         writer.write_all(&proof).unwrap();
         writer.flush().unwrap();
     };
+    let public_input = DefaultVoiceRecoverCircuitPublicInput {
+        commitment: format!(
+            "0x{}",
+            hex::encode(
+                instances[0]
+                    .iter()
+                    .map(|v| v.get_lower_128() as u8)
+                    .collect_vec()
+            )
+            .as_str(),
+        ),
+        feature_hash: format!(
+            "0x{}",
+            hex::encode(
+                instances[1]
+                    .iter()
+                    .map(|v| v.get_lower_128() as u8)
+                    .collect_vec()
+            )
+            .as_str(),
+        ),
+        message: format!(
+            "{}",
+            String::from_utf8(
+                instances[2]
+                    .iter()
+                    .map(|v| v.get_lower_128() as u8)
+                    .collect_vec(),
+            )
+            .unwrap()
+            .as_str()
+        ),
+        message_hash: format!(
+            "0x{}",
+            hex::encode(
+                instances[3]
+                    .iter()
+                    .map(|v| v.get_lower_128() as u8)
+                    .collect_vec(),
+            )
+            .as_str()
+        ),
+    };
+    {
+        let public_input_str = serde_json::to_string(&public_input).unwrap();
+        let mut file = File::create(public_input_path)?;
+        write!(file, "{}", public_input_str).unwrap();
+        file.flush().unwrap();
+    }
+    Ok(())
+}
+
+pub fn evm_prove(
+    params_path: &str,
+    circuit_config: &str,
+    pk_path: &str,
+    input_path: &str,
+    proof_path: &str,
+    public_input_path: &str,
+) -> Result<(), Error> {
+    set_var(VOICE_RECOVER_CONFIG_ENV, circuit_config);
+    let params = {
+        let f = File::open(params_path).unwrap();
+        let mut reader = BufReader::new(f);
+        ParamsKZG::<Bn256>::read(&mut reader).unwrap()
+    };
+    let pk = {
+        let f = File::open(pk_path).unwrap();
+        let mut reader = BufReader::new(f);
+        ProvingKey::<G1Affine>::read::<_, DefaultVoiceRecoverCircuit<Fr>>(
+            &mut reader,
+            SerdeFormat::RawBytesUnchecked,
+        )
+        .unwrap()
+    };
+    let input = serde_json::from_reader::<File, DefaultVoiceRecoverCircuitInput>(
+        File::open(input_path).unwrap(),
+    )
+    .unwrap();
+    let features = hex::decode(&input.features[2..]).unwrap();
+    let errors = hex::decode(&input.errors[2..]).unwrap();
+    let commitment = hex::decode(&input.commitment[2..]).unwrap();
+    let message = input.message.as_bytes().to_vec();
+    let circuit = DefaultVoiceRecoverCircuit::<Fr> {
+        features,
+        errors,
+        commitment,
+        message,
+        _f: PhantomData,
+    };
+    let instances = circuit.instances();
+    let public_input = DefaultVoiceRecoverCircuitPublicInput {
+        commitment: format!(
+            "0x{}",
+            hex::encode(
+                instances[0]
+                    .iter()
+                    .map(|v| v.get_lower_128() as u8)
+                    .collect_vec()
+            )
+            .as_str(),
+        ),
+        feature_hash: format!(
+            "0x{}",
+            hex::encode(
+                instances[1]
+                    .iter()
+                    .map(|v| v.get_lower_128() as u8)
+                    .collect_vec()
+            )
+            .as_str(),
+        ),
+        message: format!(
+            "{}",
+            String::from_utf8(
+                instances[2]
+                    .iter()
+                    .map(|v| v.get_lower_128() as u8)
+                    .collect_vec(),
+            )
+            .unwrap()
+            .as_str()
+        ),
+        message_hash: format!(
+            "0x{}",
+            hex::encode(
+                instances[3]
+                    .iter()
+                    .map(|v| v.get_lower_128() as u8)
+                    .collect_vec(),
+            )
+            .as_str()
+        ),
+    };
+    let proof = gen_evm_proof_gwc(&params, &pk, circuit, instances, &mut OsRng);
+    {
+        let f = File::create(proof_path).unwrap();
+        let mut writer = BufWriter::new(f);
+        writer.write_all(&proof).unwrap();
+        writer.flush().unwrap();
+    };
+    {
+        let public_input_str = serde_json::to_string(&public_input).unwrap();
+        let mut file = File::create(public_input_path)?;
+        write!(file, "{}", public_input_str).unwrap();
+        file.flush().unwrap();
+    }
     Ok(())
 }
 
@@ -238,6 +370,45 @@ pub fn verify(
             &mut transcript,
         )
         .unwrap();
+    };
+    Ok(())
+}
+
+pub fn gen_evm_verifier(
+    params_path: &str,
+    circuit_config: &str,
+    vk_path: &str,
+    code_path: &str,
+) -> Result<(), Error> {
+    set_var(VOICE_RECOVER_CONFIG_ENV, circuit_config);
+    let params = {
+        let f = File::open(params_path).unwrap();
+        let mut reader = BufReader::new(f);
+        ParamsKZG::<Bn256>::read(&mut reader).unwrap()
+    };
+    let vk = {
+        let f = File::open(vk_path).unwrap();
+        let mut reader = BufReader::new(f);
+        VerifyingKey::<G1Affine>::read::<_, DefaultVoiceRecoverCircuit<Fr>>(
+            &mut reader,
+            SerdeFormat::RawBytesUnchecked,
+        )
+        .unwrap()
+    };
+    let circuit_params = DefaultVoiceRecoverCircuit::<Fr>::read_config_params();
+    let num_instance = vec![
+        circuit_params.word_size,
+        32,
+        circuit_params.max_msg_size,
+        32,
+    ];
+    let verifier =
+        gen_evm_verifier_gwc::<DefaultVoiceRecoverCircuit<Fr>>(&params, &vk, num_instance, None);
+    let verifier_str = "0x".to_string() + &hex::encode(verifier);
+    {
+        let mut f = File::create(code_path).unwrap();
+        write!(f, "{}", verifier_str).unwrap();
+        f.flush().unwrap();
     };
     Ok(())
 }

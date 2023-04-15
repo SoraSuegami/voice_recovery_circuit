@@ -22,51 +22,138 @@ enum Commands {
     /// Generate a proving key and a verifying key.
     GenKeys {
         /// setup parameter file
-        #[arg(short, long)]
-        params_path: String,
+        #[arg(short, long, default_value = "./build/params")]
+        params_dir: String,
         /// circuit configure file
-        #[arg(short, long)]
-        circuit_config: String,
+        #[arg(
+            short,
+            long,
+            default_value = "./eth_voice_recovery/configs/test1_circuit.config"
+        )]
+        app_circuit_config: String,
+        #[arg(
+            short,
+            long,
+            default_value = "./eth_voice_recovery/configs/agg_circuit.config"
+        )]
+        agg_circuit_config: String,
         /// proving key file path
-        #[arg(long)]
-        pk_path: String,
+        #[arg(long, default_value = "./build/pks")]
+        pk_dir: String,
         /// verifying key file path
-        #[arg(long)]
+        #[arg(long, default_value = "./build/agg.vk")]
         vk_path: String,
     },
     Prove {
         /// setup parameter file
-        #[arg(short, long)]
-        params_path: String,
+        #[arg(short, long, default_value = "./build/params")]
+        params_dir: String,
         /// circuit configure file
-        #[arg(short, long)]
-        circuit_config: String,
+        #[arg(
+            short,
+            long,
+            default_value = "./eth_voice_recovery/configs/test1_circuit.config"
+        )]
+        app_circuit_config: String,
+        #[arg(
+            short,
+            long,
+            default_value = "./eth_voice_recovery/configs/agg_circuit.config"
+        )]
+        agg_circuit_config: String,
         /// proving key file path
-        #[arg(long)]
-        pk_path: String,
+        #[arg(long, default_value = "./build/pks")]
+        pk_dir: String,
         /// input file path
-        #[arg(long)]
+        #[arg(long, default_value = "./build/input.json")]
         input_path: String,
         /// proof file path
-        #[arg(long)]
+        #[arg(long, default_value = "./build/proof.bin")]
         proof_path: String,
+        /// public input file path
+        #[arg(long, default_value = "./build/public_input.json")]
+        public_input_path: String,
+    },
+    EvmProve {
+        /// setup parameter file
+        #[arg(short, long, default_value = "./build/params")]
+        params_dir: String,
+        /// circuit configure file
+        #[arg(
+            short,
+            long,
+            default_value = "./eth_voice_recovery/configs/test1_circuit.config"
+        )]
+        app_circuit_config: String,
+        #[arg(
+            short,
+            long,
+            default_value = "./eth_voice_recovery/configs/agg_circuit.config"
+        )]
+        agg_circuit_config: String,
+        /// proving key file path
+        #[arg(long, default_value = "./build/pks")]
+        pk_dir: String,
+        /// input file path
+        #[arg(long, default_value = "./build/input.json")]
+        input_path: String,
+        /// proof file path
+        #[arg(long, default_value = "./build/proof.bin")]
+        proof_path: String,
+        /// public input file path
+        #[arg(long, default_value = "./build/public_input.json")]
+        public_input_path: String,
     },
     Verify {
         /// setup parameter file
-        #[arg(short, long)]
-        params_path: String,
+        #[arg(short, long, default_value = "./build/params")]
+        params_dir: String,
         /// circuit configure file
-        #[arg(short, long)]
-        circuit_config: String,
+        #[arg(
+            short,
+            long,
+            default_value = "./eth_voice_recovery/configs/test1_circuit.config"
+        )]
+        app_circuit_config: String,
+        #[arg(
+            short,
+            long,
+            default_value = "./eth_voice_recovery/configs/agg_circuit.config"
+        )]
+        agg_circuit_config: String,
         /// verifying key file path
-        #[arg(long)]
+        #[arg(long, default_value = "./build/agg.vk")]
         vk_path: String,
         /// public input file path
-        #[arg(long)]
+        #[arg(long, default_value = "./build/public_input.json")]
         public_input_path: String,
         /// proof file path
-        #[arg(long)]
+        #[arg(long, default_value = "./build/proof.bin")]
         proof_path: String,
+    },
+    GenEvmVerifier {
+        /// setup parameter file
+        #[arg(short, long, default_value = "./build/params")]
+        params_dir: String,
+        /// circuit configure file
+        #[arg(
+            short,
+            long,
+            default_value = "./eth_voice_recovery/configs/test1_circuit.config"
+        )]
+        app_circuit_config: String,
+        #[arg(
+            short,
+            long,
+            default_value = "./eth_voice_recovery/configs/agg_circuit.config"
+        )]
+        agg_circuit_config: String,
+        /// verifying key file path
+        #[arg(long, default_value = "./build/agg.vk")]
+        vk_path: String,
+        /// verifier code path
+        #[arg(long, default_value = "./build/verifier_code.txt")]
+        code_path: String,
     },
 }
 
@@ -75,37 +162,83 @@ fn main() {
     match cli.command {
         Commands::GenParams { k, params_path } => gen_params(&params_path, k).unwrap(),
         Commands::GenKeys {
-            params_path,
-            circuit_config,
-            pk_path,
+            params_dir,
+            app_circuit_config,
+            agg_circuit_config,
+            pk_dir,
             vk_path,
-        } => gen_keys(&params_path, &circuit_config, &pk_path, &vk_path).unwrap(),
+        } => gen_keys(
+            &params_dir,
+            &app_circuit_config,
+            &agg_circuit_config,
+            &pk_dir,
+            &vk_path,
+        )
+        .unwrap(),
         Commands::Prove {
-            params_path,
-            circuit_config,
-            pk_path,
+            params_dir,
+            app_circuit_config,
+            agg_circuit_config,
+            pk_dir,
             input_path,
             proof_path,
+            public_input_path,
         } => prove(
-            &params_path,
-            &circuit_config,
-            &pk_path,
+            &params_dir,
+            &app_circuit_config,
+            &agg_circuit_config,
+            &pk_dir,
             &input_path,
             &proof_path,
+            &public_input_path,
+        )
+        .unwrap(),
+        Commands::EvmProve {
+            params_dir,
+            app_circuit_config,
+            agg_circuit_config,
+            pk_dir,
+            input_path,
+            proof_path,
+            public_input_path,
+        } => evm_prove(
+            &params_dir,
+            &app_circuit_config,
+            &agg_circuit_config,
+            &pk_dir,
+            &input_path,
+            &proof_path,
+            &public_input_path,
         )
         .unwrap(),
         Commands::Verify {
-            params_path,
-            circuit_config,
+            params_dir,
+            app_circuit_config,
+            agg_circuit_config,
             vk_path,
             public_input_path,
             proof_path,
         } => verify(
-            &params_path,
-            &circuit_config,
+            &params_dir,
+            &app_circuit_config,
+            &agg_circuit_config,
             &vk_path,
             &public_input_path,
             &proof_path,
+        )
+        .unwrap(),
+        Commands::GenEvmVerifier {
+            params_dir,
+            app_circuit_config,
+            agg_circuit_config,
+            vk_path,
+            code_path,
+        } => gen_evm_verifier(
+            &params_dir,
+            &app_circuit_config,
+            &agg_circuit_config,
+            &vk_path,
+            &code_path,
         )
         .unwrap(),
     }

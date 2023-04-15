@@ -1,19 +1,30 @@
 import { ethers } from "hardhat";
+import { ENS__factory } from "../typechain";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const unlockTime = currentTimestampInSeconds + 60;
+  const accounts = await ethers.getSigners();
+  console.log('Account:', accounts[0].address);
 
-  const lockedAmount = ethers.utils.parseEther("0.001");
+  // Get the ENS factory
+  const ENSDeployer = await ethers.getContractFactory('ENSDeployer');
 
-  const Lock = await ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+  // Deploy ENS
+  console.log('Deploying ENSDeployer...');
+  const ensDeployer = await ENSDeployer.deploy();
+  await ensDeployer.deployed();
+  console.log('ENSDeployer deployed to:', ensDeployer.address);
 
-  await lock.deployed();
+  // console.log('Register ENS address...');
+  // const ensRegistryAddress = await ensDeployer.ens();
+  // const ensRegistry = ENS__factory.connect(ensRegistryAddress, accounts[0]);
 
-  console.log(
-    `Lock with ${ethers.utils.formatEther(lockedAmount)}ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
-  );
+  // Deploy VoiceKeyRecover
+  console.log('Deploying VoiceKeyRecover...');
+  const voiceKeyRecover = await ethers.getContractFactory('VoiceKeyRecover');
+  // await voiceKeyRecover.deploy(dummyVerifierAddress, ensDeployer.address, 32, 64);
+  const vk = await voiceKeyRecover.deploy(ensDeployer.address, 32, 64);
+  console.log('VoiceKeyRecover deployed to:', vk.address);
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere
