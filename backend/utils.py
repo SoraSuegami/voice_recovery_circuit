@@ -86,7 +86,7 @@ def padding(data, n):
 def fuzzy_commitment(feat_vec):
     '''
     特徴量ベクトルからh(w)とcを生成する。
-    
+
     Parameters
     ----------
     feat_vec : bytearray
@@ -120,3 +120,25 @@ def fuzzy_commitment(feat_vec):
 # print("bin_vec is ",bin_vec)
 # bin_vec = padding(bin_vec, 512)
 # print("padding bin_vec is ",bin_vec)
+
+
+def recover(feat_vec, c, h_w, m):
+    '''
+    特徴量ベクトルからwを復元し、eとhash(m,w)を返す。
+
+    Parameters
+    ----------
+    feat_vec : bytearray
+    c : bytearray
+    h_w : 
+    m : stirng?
+    '''
+
+    w1 = xor(feat_vec, c)
+    w = bch_error_correction(w1)
+
+    e = xor(w, w1)
+    
+    h_m_w = hash(m+w)
+
+    return e, h_m_w
