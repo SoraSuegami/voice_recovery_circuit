@@ -85,8 +85,6 @@ function App() {
           provider = new ethers.providers.Web3Provider(window.ethereum);
           await provider.send("eth_requestAccounts", []);
           signer = provider.getSigner();
-          const sender = await signer.getAddress();
-          setSender(sender);
           const vk = new ethers.Contract(
             contractAddress,
             VoiceKeyRecovery.abi,
@@ -113,7 +111,7 @@ function App() {
         console.error("Error initializing contract or provider:", err);
       }
     })();
-  }, [checkRegistered]);
+  }, [checkRegistered, sender]);
 
   const handleKeyRegisterWav = async (blob) => {
     setIsRecording(false);
@@ -229,7 +227,7 @@ function App() {
               )}
             </Box>
             <Box display="flex" justifyContent="center" alignItems="center"><Typography variant="h6" mr={2}>0x</Typography>
-            <TextField width = "100%" label="Put your (wallet contract) account here" variant="outlined"/>
+            <TextField value={sender} onChange={(e)=>setSender(e.target.value)} width = "100%" label="Put your (wallet contract) account here" variant="outlined"/>
             </Box>
           </CardContent>
         </Card>
@@ -246,6 +244,9 @@ function App() {
               setDisabled={setIsRecording}
             />
             <RegisterStatus registerStatus={registerStatus} />
+            <Box display="flex" justifyContent="center" alignItems="center"><Typography variant="h6" mr={2}>0x</Typography>
+            <TextField value={sender} onChange={(e)=>setSender(e.target.value)} width = "100%" label="Put your (wallet contract) account here" variant="outlined"/>
+            </Box>
           </CardContent>
         </Card>
       )}
