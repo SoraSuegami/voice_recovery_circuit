@@ -6,8 +6,7 @@ import MediaStreamRecorder from "msr";
 const record_duration =1000;
 
 // eslint-disable-next-line react/prop-types
-function RecordButton({ sendRecording, ...props }) {
-  const [recording, setRecording] = useState(false);
+function RecordButton({ sendRecording, disabled, setDisabled, ...props }) {
   const mediaRecorder = useRef(null);
 
   const startRecording = () => {
@@ -19,7 +18,7 @@ function RecordButton({ sendRecording, ...props }) {
         mediaRecorder.current.audioChannels = 1;
         mediaRecorder.current.sampleRate = 16000;
         mediaRecorder.current.start(record_duration); // 5秒ごとにデータを取得する
-        setRecording(true);
+        setDisabled(true);
 
         mediaRecorder.current.ondataavailable = (blob) => {
           // 5秒経過したら録音を停止する
@@ -35,14 +34,13 @@ function RecordButton({ sendRecording, ...props }) {
   const stopRecording = () => {
     if (mediaRecorder.current) {
       mediaRecorder.current.stop();
-      setRecording(false);
     }
   };
 
   return (
-    <IconButton disabled={recording} onClick={startRecording}>
+    <IconButton disabled={disabled} onClick={startRecording}>
       <MicIcon
-        disabled={recording}
+        disabled={disabled}
         style={{
           fontSize: 80,
         }}
