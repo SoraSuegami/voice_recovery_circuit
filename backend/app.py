@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from machine_learning.speaker_recognition import calc_feat_vec
-from utils import fuzzy_commitment, bytearray_to_hex, hex_to_bytearray, feat_bytearray_from_wav_blob, recover, my_hash
+from utils import fuzzy_commitment, recover, my_hash, generate_proof
+from convert import bytearray_to_hex, hex_to_bytearray, feat_bytearray_from_wav_blob
 import numpy as np
 import json
 
@@ -69,12 +69,15 @@ def gen_proof():
     msg = hex_to_bytearray(json_data["msg"])
 
     code_error, hash_ecc_msg, recovered_hash_ecc = recover(new_feat, feat_xor_ecc, hash_ecc, msg)
+    proof_succeed, proof_bin, session_id = generate_proof(new_feat, code_error, feat_xor_ecc, msg)
 
     ret = {
         "new_feat": bytearray_to_hex(new_feat),
         "recovered_hash_ecc" : bytearray_to_hex(recovered_hash_ecc),
         "hash_ecc_msg": bytearray_to_hex(hash_ecc_msg),
         "code_error": bytearray_to_hex(code_error),
+        "proof": bytearray_to_hex(proof_bin),
+        "session_id": session_id,
     }
     print(ret)
 
