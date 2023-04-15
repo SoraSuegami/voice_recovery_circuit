@@ -43,6 +43,7 @@ contract VoiceKeyRecover is Verifier {
             featureHash,
             commitment
         );
+        isRegistered[walletAddr] = true;
     }
 
     function recover(
