@@ -9,9 +9,9 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import soundfile
 
-from models.RawNet3 import RawNet3
-from models.RawNetBasicBlock import Bottle2neck
-from utils import tuneThresholdfromScore, ComputeErrorRates, ComputeMinDcf
+from .models.RawNet3 import RawNet3
+from .models.RawNetBasicBlock import Bottle2neck
+from .utils import tuneThresholdfromScore, ComputeErrorRates, ComputeMinDcf
 
 
 def main(args: Dict) -> None:

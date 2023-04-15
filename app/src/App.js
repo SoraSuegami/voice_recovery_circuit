@@ -8,13 +8,14 @@ const apiUrl = "http://127.0.0.1:5000";
 
 function App() {
   const handleSendWav = async (blob) => {
-    const url = urlJoin(apiUrl, "/api/upload-wav");
+    const url = urlJoin(apiUrl, "/api/feature-vector");
     const formData = new FormData();
-    formData.append("file", blob);
+    formData.append("file", blob, 'recorded_audio.wav');
     const response = await fetch(url, { method: "POST", body: formData });
-    console.log(response);
+    const data = await response.json()
+    console.log(data);
 
-    return response;
+    return data;
   };
 
   return (
@@ -31,7 +32,7 @@ function App() {
       <Typography variant="h4" component="h1" sx={{ marginBottom: 2 }}>
         Recover Your Key
       </Typography>
-      <RecordButton sendToFlask={handleSendWav} />
+      <RecordButton sendRecording={handleSendWav} />
     </div>
   );
 }
