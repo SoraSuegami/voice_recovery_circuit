@@ -19,6 +19,9 @@ scikit-learn = "^1.2.2"
 bchlib = "^0.14.0"
 
 
+[tool.poetry.group.dev.dependencies]
+maturin = "^0.14.17"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

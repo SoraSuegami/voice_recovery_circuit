@@ -4,6 +4,7 @@ import os
 import random
 from machine_learning.speaker_recognition import calc_feat_vec
 import numpy as np
+from voice_recovery_python import poseidon_hash
 
 
 # create a bch object
@@ -64,13 +65,13 @@ def xor(a, b):
 
 def hash(data):
     '''
-    ハッシュ関数(SHA256)を取る。
+    Poseidonハッシュ関数をとる
 
     Parameters
     ----------
     data : bytearray
     '''
-    return hashlib.sha256(data).digest() 
+    return poseidon_hash(bytearray_to_hex(data))
 
 def padding(data, n):
     '''
@@ -130,9 +131,9 @@ def recover(feat_vec, c, h_w, m):
 
     return e, h_m_w
 
-#長さが256ビットの特徴ベクトルを生成
+# # 長さが256ビットの特徴ベクトルを生成
 # vec = np.random.randint(0, 2, 256)
-#print(vec)
+# print(vec)
 # bin_vec = bytearray(np.packbits(vec))
 # print("bin_vec is ",bytearray_to_hex(bin_vec))
 # bin_vec = padding(bin_vec, 64)
