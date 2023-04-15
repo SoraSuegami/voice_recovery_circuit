@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from machine_learning.speaker_recognition import calc_feat_vec
-from utils import fuzzy_commitment, bytearray_to_hex, hex_to_bytearray, feat_bytearray_from_wav_blob, recover, my_hash
+from utils import fuzzy_commitment, recover, my_hash
+from convert import bytearray_to_hex, hex_to_bytearray, feat_bytearray_from_wav_blob
 import numpy as np
 import json
 

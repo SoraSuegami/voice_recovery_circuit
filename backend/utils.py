@@ -7,18 +7,13 @@ import soundfile
 from machine_learning.speaker_recognition import calc_feat_vec
 import numpy as np
 from voice_recovery_python import poseidon_hash
+from convert import bytearray_to_hex, hex_to_bytearray, feat_bytearray_from_wav_blob
 
 
 # create a bch object
 BCH_POLYNOMIAL = 8219
 BCH_BITS = 64 #誤り訂正可能なビット数
 bch = bchlib.BCH(BCH_POLYNOMIAL, BCH_BITS)
-
-def bytearray_to_hex(ba) :
-    return '0x' + ''.join(format(x, '02x') for x in ba)
-
-def hex_to_bytearray(hex_string):
-    return bytearray.fromhex(hex_string[2:])
 
 # bch符号による誤り訂正
 def bch_error_correction(packet):
@@ -141,12 +136,8 @@ def recover(feat_vec, c, h_w, m):
 
     return e, h_m_w, recovered_h_W
 
-def feat_bytearray_from_wav_blob(wav_form_file):
-    file_data = io.BytesIO(wav_form_file.read())
-    audio, sample_rate = soundfile.read(file_data)
-    feat_vec = calc_feat_vec(audio, sample_rate)
-    feat_bytearray = bytearray(np.packbits(feat_vec))
-    return feat_bytearray
+def generate_proof():
+    return
 
 # # 長さが256ビットの特徴ベクトルを生成
 # vec = np.random.randint(0, 2, 256)
