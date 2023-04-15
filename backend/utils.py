@@ -2,8 +2,11 @@ import bchlib
 import hashlib
 import os
 import random
+import io
+import soundfile
 from machine_learning.speaker_recognition import calc_feat_vec
 import numpy as np
+from voice_recovery_python import poseidon_hash
 
 
 # create a bch object
@@ -13,6 +16,9 @@ bch = bchlib.BCH(BCH_POLYNOMIAL, BCH_BITS)
 
 def bytearray_to_hex(ba) :
     return '0x' + ''.join(format(x, '02x') for x in ba)
+
+def hex_to_bytearray(hex_string):
+    return bytearray.fromhex(hex_string[2:])
 
 # bch符号による誤り訂正
 def bch_error_correction(packet):
@@ -62,15 +68,15 @@ def xor(a, b):
     result = bytearray([x ^ y for x, y in zip(a, b)])
     return result
 
-def hash(data):
+def my_hash(data):
     '''
-    ハッシュ関数(SHA256)を取る。
+    Poseidonハッシュ関数をとる
 
     Parameters
     ----------
     data : bytearray
     '''
-    return hashlib.sha256(data).digest() 
+    return hex_to_bytearray(poseidon_hash(bytearray_to_hex(data)))
 
 def padding(data, n):
     '''
@@ -105,7 +111,7 @@ def fuzzy_commitment(feat_vec):
 
     c = xor(feat_vec, packet)
 
-    h_w = hash(packet)
+    h_w = my_hash(packet)
 
     return c, h_w
 
@@ -117,25 +123,44 @@ def recover(feat_vec, c, h_w, m):
     ----------
     feat_vec : bytearray
     c : bytearray
-    h_w : 
-    m : stirng
+    h_w : bytearray
+    m : bytearray
     '''
-
+    assert(len(c) >= len(feat_vec))
+    l = len(c)
+    feat_vec = padding(feat_vec, l)
     w1 = xor(feat_vec, c)
     w = bch_error_correction(w1)
 
     e = xor(w, w1)
 
-    h_m_w = hash(m.encode()+w)
+    h_m_w = my_hash(m+w)
 
-    return e, h_m_w
+    recovered_h_W = my_hash(w)
+    print(recovered_h_W)
 
-#長さが256ビットの特徴ベクトルを生成
+    return e, h_m_w, recovered_h_W
+
+def feat_bytearray_from_wav_blob(wav_form_file):
+    file_data = io.BytesIO(wav_form_file.read())
+    audio, sample_rate = soundfile.read(file_data)
+    feat_vec = calc_feat_vec(audio, sample_rate)
+    feat_bytearray = bytearray(np.packbits(feat_vec))
+    return feat_bytearray
+
+# # 長さが256ビットの特徴ベクトルを生成
 # vec = np.random.randint(0, 2, 256)
-#print(vec)
+# print(vec)
 # bin_vec = bytearray(np.packbits(vec))
 # print("bin_vec is ",bytearray_to_hex(bin_vec))
 # bin_vec = padding(bin_vec, 64)
 # print("padding bin_vec is ",bin_vec)
 # h_w, c = fuzzy_commitment(bin_vec)
 # print ("h_w is ",h_w), print("c is ",c)
+
+def main():
+    print(xor(b'\x0505', b'\x01'))
+    print(my_hash(b'\x0105'))
+
+if __name__ == '__main__':
+    main()
