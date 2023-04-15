@@ -15,14 +15,17 @@ contract VoiceKeyRecover is Verifier {
     mapping(address => bool) public isRegistered;
     mapping(address => VoiceData) public voiceDataOfWallet;
     mapping(bytes32 => bool) public usedMessageHashes;
-
-    ENS ens = ENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
+    ENS ens;
 
     constructor(
-        address _yulVerifier,
+        // address _yulVerifier,
+        address _ens,
         uint _wordSize,
         uint _maxMsgSize
-    ) Verifier(_yulVerifier, _wordSize, _maxMsgSize) {}
+    // ) Verifier(_yulVerifier, _wordSize, _maxMsgSize) {
+    ) Verifier(_wordSize, _maxMsgSize) {
+        ens = ENS(_ens);
+    }
 
     function getOwner() public view returns (address) {
         require(isRegistered[msg.sender], "not registered");
