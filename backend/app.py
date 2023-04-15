@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from utils import fuzzy_commitment, recover, my_hash
+from utils import fuzzy_commitment, recover, my_hash, generate_proof
 from convert import bytearray_to_hex, hex_to_bytearray, feat_bytearray_from_wav_blob
 import numpy as np
 import json
@@ -76,7 +76,7 @@ def gen_proof():
         "recovered_hash_ecc" : bytearray_to_hex(recovered_hash_ecc),
         "hash_ecc_msg": bytearray_to_hex(hash_ecc_msg),
         "code_error": bytearray_to_hex(code_error),
-        "proof": proof_bin,
+        "proof": bytearray_to_hex(proof_bin),
         "session_id": session_id,
     }
     print(ret)
