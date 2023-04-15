@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+poseidon = { version = "0.2.0", git = "https://github.com/privacy-scaling-explorations/poseidon", rev = "2fb4a23" }
 num-bigint = { version = "0.4", features = ["rand"] }
 sha2 = "0.10.6"
 rand = "0.8.5"
