@@ -3,7 +3,7 @@ import urlJoin from "url-join";
 import "./App.css";
 import RecordButton from "./RecordButton";
 import VoiceKeyRecovery from "./contracts/VoiceKeyRecover.sol/VoiceKeyRecover.json";
-import { Typography, Box, Card, CardContent, Modal } from "@mui/material";
+import { Typography, Box, Card, CardContent, Modal, TextField } from "@mui/material";
 import { ethers } from "ethers";
 import RegisterStatus from "./RegisterStatus";
 import Countdown from "./countdown";
@@ -227,6 +227,9 @@ function App() {
                   recovered h_W = <br/>{recoveredHashEcc}
                 </Typography>
               )}
+            </Box>
+            <Box display="flex" justifyContent="center" alignItems="center"><Typography variant="h6" mr={2}>0x</Typography>
+            <TextField width = "100%" label="Put your (wallet contract) account here" variant="outlined"/>
             </Box>
           </CardContent>
         </Card>
