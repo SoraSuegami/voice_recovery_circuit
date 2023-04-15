@@ -41,7 +41,7 @@ enum Commands {
         #[arg(long, default_value = "./build/pks")]
         pk_dir: String,
         /// verifying key file path
-        #[arg(long, default_value = "./build/agg.vk")]
+        #[arg(long, default_value = "./build/app.vk")]
         vk_path: String,
     },
     Prove {
@@ -98,7 +98,7 @@ enum Commands {
         #[arg(long, default_value = "./build/input.json")]
         input_path: String,
         /// proof file path
-        #[arg(long, default_value = "./build/proof.bin")]
+        #[arg(long, default_value = "./build/evm_proof.bin")]
         proof_path: String,
         /// public input file path
         #[arg(long, default_value = "./build/public_input.json")]
@@ -122,7 +122,7 @@ enum Commands {
         )]
         agg_circuit_config: String,
         /// verifying key file path
-        #[arg(long, default_value = "./build/agg.vk")]
+        #[arg(long, default_value = "./build/app.vk")]
         vk_path: String,
         /// public input file path
         #[arg(long, default_value = "./build/public_input.json")]
@@ -149,10 +149,10 @@ enum Commands {
         )]
         agg_circuit_config: String,
         /// verifying key file path
-        #[arg(long, default_value = "./build/agg.vk")]
+        #[arg(long, default_value = "./build/app.vk")]
         vk_path: String,
         /// verifier code path
-        #[arg(long, default_value = "./build/verifier_code.txt")]
+        #[arg(long, default_value = "./build/VerifierInternal.sol")]
         code_path: String,
     },
 }

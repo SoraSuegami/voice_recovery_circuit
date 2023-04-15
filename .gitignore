@@ -17,3 +17,5 @@ __pycache__/
 
 /target
 /Cargo.lock
+/build
+/hardhat/node_modules

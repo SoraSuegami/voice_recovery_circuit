@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./VerifierInternal.sol";
+
 // Original: https://zenn.dev/qope/scraps/e14176fc816dde
-contract Verifier {
+contract Verifier is VerifierInternal {
     address yulVerifier;
     uint wordSize;
     uint maxMsgSize;

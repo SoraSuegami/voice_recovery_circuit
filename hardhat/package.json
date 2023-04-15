@@ -2,8 +2,10 @@
   "name": "hardhat-project",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^2.0.2",
+    "@tovarishfin/hardhat-yul": "^3.0.5",
     "hardhat": "^2.13.1",
+    "hardhat-contract-sizer": "^2.8.0",
+    "ts-node": "^10.9.1",
     "typescript": "^5.0.4"
-  },
-  "dependencies": {}
+  }
 }

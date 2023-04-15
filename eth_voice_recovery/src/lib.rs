@@ -33,6 +33,7 @@ use snark_verifier_sdk::CircuitExt;
 #[derive(Debug, Clone)]
 pub struct VoiceRecoverResult<'a> {
     pub assigned_commitment: Vec<AssignedValue<'a, Fr>>,
+    pub assigned_commitment_hash: AssignedValue<'a, Fr>,
     pub assigned_feature_hash: AssignedValue<'a, Fr>,
     pub assigned_message: Vec<AssignedValue<'a, Fr>>,
     pub assigned_message_hash: AssignedValue<'a, Fr>,
@@ -96,6 +97,10 @@ impl VoiceRecoverConfig {
             .collect_vec();
         let hash_input = vec![fuzzy_result.assigned_word, assigned_message.clone()].concat();
         let assigned_message_hash = poseidon.hash_elements(ctx, &gate, &hash_input)?.0[0].clone();
+        let assigned_commitment_hash = poseidon
+            .hash_elements(ctx, &gate, &fuzzy_result.assigned_commitment)?
+            .0[0]
+            .clone();
         // for idx in 0..self.fuzzy_commitment.word_size {
         //     gate.assert_equal(
         //         ctx,
@@ -140,6 +145,7 @@ impl VoiceRecoverConfig {
             assigned_feature_hash: fuzzy_result.assigned_feature_hash,
             assigned_message,
             assigned_message_hash,
+            assigned_commitment_hash,
         })
     }
 
@@ -176,10 +182,7 @@ pub struct DefaultVoiceRecoverConfigParams {
 #[derive(Debug, Clone)]
 pub struct DefaultVoiceRecoverConfig {
     inner: VoiceRecoverConfig,
-    commitment_public: Column<Instance>,
-    feature_hash_public: Column<Instance>,
-    message_public: Column<Instance>,
-    message_hash_public: Column<Instance>,
+    instance: Column<Instance>, // 1. commitment hash 2. feature hash 3. message hash 4. message
 }
 
 #[derive(Debug, Clone)]
@@ -230,21 +233,9 @@ impl Circuit<Fr> for DefaultVoiceRecoverCircuit {
             range_config,
             params.error_threshold,
         );
-        let commitment_public = meta.instance_column();
-        meta.enable_equality(commitment_public);
-        let feature_hash_public = meta.instance_column();
-        meta.enable_equality(feature_hash_public);
-        let message_public = meta.instance_column();
-        meta.enable_equality(message_public);
-        let message_hash_public = meta.instance_column();
-        meta.enable_equality(message_hash_public);
-        Self::Config {
-            inner,
-            commitment_public,
-            feature_hash_public,
-            message_public,
-            message_hash_public,
-        }
+        let instance = meta.instance_column();
+        meta.enable_equality(instance);
+        Self::Config { inner, instance }
     }
 
     fn synthesize(
@@ -254,10 +245,7 @@ impl Circuit<Fr> for DefaultVoiceRecoverCircuit {
     ) -> Result<(), Error> {
         config.inner.range().load_lookup_table(&mut layouter)?;
         let mut first_pass = SKIP_FIRST_PASS;
-        let mut commitment_cell = vec![];
-        let mut feature_hash_cell = vec![];
-        let mut message_cell = vec![];
-        let mut message_hash_cell = vec![];
+        let mut instance_cell = vec![];
         layouter.assign_region(
             || "voice recover",
             |region| {
@@ -276,45 +264,31 @@ impl Circuit<Fr> for DefaultVoiceRecoverCircuit {
                     &self.message,
                 )?;
                 config.inner.finalize(ctx);
-                commitment_cell.append(
-                    &mut result
-                        .assigned_commitment
-                        .into_iter()
-                        .map(|v| v.cell())
-                        .collect_vec(),
-                );
-                result
-                    .assigned_feature_hash
-                    .value()
-                    .map(|v| println!("assigned feature hash {:?}", v));
-                feature_hash_cell.push(result.assigned_feature_hash.cell());
-                message_cell.append(
+                instance_cell.push(result.assigned_commitment_hash.cell());
+                // result
+                //     .assigned_feature_hash
+                //     .value()
+                //     .map(|v| println!("assigned feature hash {:?}", v));
+                instance_cell.push(result.assigned_feature_hash.cell());
+                // result
+                //     .assigned_message_hash
+                //     .value()
+                //     .map(|v| println!("assigned message hash {:?}", v));
+                instance_cell.push(result.assigned_message_hash.cell());
+                instance_cell.append(
                     &mut result
                         .assigned_message
                         .into_iter()
                         .map(|v| v.cell())
                         .collect_vec(),
                 );
-                result
-                    .assigned_message_hash
-                    .value()
-                    .map(|v| println!("assigned message hash {:?}", v));
-                message_hash_cell.push(result.assigned_message_hash.cell());
+
                 Ok(())
             },
         )?;
-        // for (idx, cell) in commitment_cell.into_iter().enumerate() {
-        //     layouter.constrain_instance(cell, config.commitment_public, idx)?;
-        // }
-        // for (idx, cell) in feature_hash_cell.into_iter().enumerate() {
-        //     layouter.constrain_instance(cell, config.feature_hash_public, idx)?;
-        // }
-        // for (idx, cell) in message_cell.into_iter().enumerate() {
-        //     layouter.constrain_instance(cell, config.message_public, idx)?;
-        // }
-        // for (idx, cell) in message_hash_cell.into_iter().enumerate() {
-        //     layouter.constrain_instance(cell, config.message_hash_public, idx)?;
-        // }
+        for (idx, cell) in instance_cell.into_iter().enumerate() {
+            layouter.constrain_instance(cell, config.instance, idx)?;
+        }
         Ok(())
     }
 }
@@ -322,16 +296,17 @@ impl Circuit<Fr> for DefaultVoiceRecoverCircuit {
 impl CircuitExt<Fr> for DefaultVoiceRecoverCircuit {
     fn num_instance(&self) -> Vec<usize> {
         let params = Self::read_config_params();
-        // vec![params.word_size, 32, params.max_msg_size, 32]
-        vec![0, 0, 0, 0]
+        vec![3 + params.max_msg_size]
     }
 
     fn instances(&self) -> Vec<Vec<Fr>> {
-        let commitment_public = self
-            .commitment
-            .iter()
-            .map(|byte| Fr::from(*byte as u64))
-            .collect_vec();
+        let mut instances = vec![];
+        let commitment_hash = poseidon_hash(&self.commitment);
+        // println!(
+        //     "commitment hash {}",
+        //     hex::encode(&commitment_hash.to_bytes())
+        // );
+        instances.push(commitment_hash);
         let word = self
             .features
             .iter()
@@ -340,26 +315,23 @@ impl CircuitExt<Fr> for DefaultVoiceRecoverCircuit {
             .map(|((f, c), e)| f ^ c ^ e)
             .collect_vec();
         let feature_hash = poseidon_hash(&word);
-        let feature_hash_public = vec![feature_hash];
+        // println!("feature hash {}", hex::encode(&feature_hash.to_bytes()));
+        instances.push(feature_hash);
         let mut message_ext = self.message.to_vec();
         let config_params = Self::read_config_params();
         message_ext.append(&mut vec![
             0;
             config_params.max_msg_size - self.message.len()
         ]);
-        let message_public = message_ext
+        let mut message_public = message_ext
             .iter()
             .map(|byte| Fr::from(*byte as u64))
             .collect_vec();
         let message_hash = poseidon_hash(&[word.to_vec(), message_ext].concat());
-        let message_hash_public = vec![message_hash];
-        // vec![
-        //     commitment_public,
-        //     feature_hash_public,
-        //     message_public,
-        //     message_hash_public,
-        // ]
-        vec![vec![], vec![], vec![], vec![]]
+        // println!("message hash {}", hex::encode(&message_hash.to_bytes()));
+        instances.push(message_hash);
+        instances.append(&mut message_public);
+        vec![instances]
     }
 }
 
@@ -388,7 +360,7 @@ mod test {
             VOICE_RECOVER_CONFIG_ENV,
             Some("./configs/test1_circuit.config"),
             || {
-                let vec_len = 256;
+                let vec_len = 140 * 8;
                 let hamming_weight = 99;
                 let features_bits = gen_random_vec_bits(vec_len);
                 let word_bits = gen_random_vec_bits(vec_len);
@@ -415,7 +387,7 @@ mod test {
                     message,
                 };
                 let instance = circuit.instances();
-                let prover = MockProver::run(15, &circuit, instance).unwrap();
+                let prover = MockProver::run(20, &circuit, instance).unwrap();
                 assert_eq!(prover.verify(), Ok(()));
             },
         );

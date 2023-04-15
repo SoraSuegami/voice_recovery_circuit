@@ -1,19 +1,24 @@
 import { ethers } from "hardhat";
+import * as fs from "fs/promises";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const unlockTime = currentTimestampInSeconds + 60;
+  const signer = (await ethers.getSigners())[0];
+  console.log(await signer.getBalance());
+  const yulVerifier = await fs.readFile("./test_data/verifier_code.txt");
+  const wordSize = 32;
+  const maxMsgSize = 64;
 
-  const lockedAmount = ethers.utils.parseEther("0.001");
-
-  const Lock = await ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
-
-  await lock.deployed();
-
-  console.log(
-    `Lock with ${ethers.utils.formatEther(lockedAmount)}ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
-  );
+  // const factory = ethers.ContractFactory.fromSolidity(
+  //   { bytecode: yulVerifier, abi: [] },
+  //   signer
+  // );
+  // const contract = await factory.deploy({ gasLimit: 9000000000000000, gasPrice: 875000000 });
+  // await contract.deployed();
+  // console.log(contract.address);
+  const VerifierInternalFactory = await ethers.getContractFactory("VerifierInternal");
+  const VerifierInternal = await VerifierInternalFactory.deploy();
+  await VerifierInternal.deployed();
+  console.log(VerifierInternal.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

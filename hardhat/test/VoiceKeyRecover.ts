@@ -13,13 +13,13 @@ describe("VoiceKeyRecover", function () {
     console.log(await signer.getBalance());
     const yulVerifier = await fs.readFile("./test_data/verifier_code.txt");
     const wordSize = 32;
-    const maxMsgSize = 1024;
+    const maxMsgSize = 64;
 
     const factory = ethers.ContractFactory.fromSolidity(
       { bytecode: yulVerifier, abi: [] },
       signer
     );
-    const contract = await factory.deploy({ gasLimit: 30000000 });
+    const contract = await factory.deploy({ gasLimit: 900_000_000 });
     await contract.deployed();
     console.log(contract.address);
 
