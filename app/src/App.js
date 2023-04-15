@@ -7,18 +7,24 @@ import { Typography, Box, Card, CardContent, Modal } from "@mui/material";
 import { ethers } from "ethers";
 import RegisterStatus from "./RegisterStatus";
 import Countdown from "./countdown";
+import { countOnes } from "./util";
 
-const contractAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 const apiUrl = "http://127.0.0.1:5000";
+const threshold = 64;
 
 function App() {
   const [vk, setVk] = useState(null);
   const [sender, setSender] = useState(null);
-  const [recordDisabled, setRecordDisabled] = useState(true);
+  const [isRecording, setIsRecording] = useState(false);
   const [hashEcc, setHashRcc] = useState(null);
+  const [codeErrorCount, setCodeErrorCount] = useState(null);
   const [featXorEcc, setFeatXorEcc] = useState(null);
+  const [recoveredHashEcc, setRecoveredHashEcc] = useState(null);
+  const [hashFeatXorEcc, setHashFeatXorEcc] = useState(null);
+
   // 0: commitment生成中,  1: commitment生成失敗, 2: commitment生成完了,3: commitment送信中,  4: commitment送信失敗 ,5: commitment送信完了,
-  console.log(recordDisabled);
+  console.log(isRecording);
   const [registerStatus, setRegisterStatus] = useState(null);
   console.log("hashEcc: ", hashEcc, "featXorEcc: ", featXorEcc);
 
@@ -38,6 +44,7 @@ function App() {
           // console.log("commitmentData: ", commitmentData);
           setHashRcc(commitmentData.featureHash);
           setFeatXorEcc(commitmentData.commitment);
+          setHashFeatXorEcc(commitmentData.hashCommitment);
         }
         setRegistered(r);
       } else {
@@ -80,13 +87,13 @@ function App() {
           await checkRegistered(vk, sender);
           setVk(vk);
           console.log("initialized!");
-          setRecordDisabled(false);
+          setIsRecording(false);
 
-          vk.on("Registered", () => {
-            checkRegistered(vk, sender);
-          }).catch((err) => {
-            throw err;
-          });
+          // vk.on("Registered", () => {
+          //   checkRegistered(vk, sender);
+          // }).catch((err) => {
+          //   throw err;
+          // });
 
           return () => {
             vk.removeAllListeners();
@@ -99,7 +106,7 @@ function App() {
   }, [checkRegistered]);
 
   const handleKeyRegisterWav = async (blob) => {
-    setRecordDisabled(false);
+    setIsRecording(false);
     // Commitment生成開始
     setRegisterStatus(0);
     const url = urlJoin(apiUrl, "/api/feature-vector");
@@ -110,11 +117,17 @@ function App() {
       setRegisterStatus(1);
       throw err;
     });
+    console.log(data);
     setRegisterStatus(2);
     if (vk) {
       setRegisterStatus(3);
       await vk
-        .register(sender, data.hash_ecc, data.feat_xor_ecc)
+        .register(
+          sender,
+          data.hash_ecc,
+          data.hash_feat_xor_ecc,
+          data.feat_xor_ecc
+        )
         .catch((err) => {
           setRegisterStatus(4);
           throw err;
@@ -126,8 +139,37 @@ function App() {
   };
 
   const handleKeyRecoverWav = async (blob) => {
-    setRecordDisabled(false);
-    console.log("unimplement!");
+    setIsRecording(false);
+    // Commitment生成開始
+    const url = urlJoin(apiUrl, "/api/gen-proof");
+    const formData = new FormData();
+    formData.append("file", blob, "recorded_audio.wav");
+
+    const jsonData = {
+      hash_ecc: hashEcc,
+      feat_xor_ecc: featXorEcc,
+      msg: "0x9a8f43",
+    };
+    formData.append("jsonData", JSON.stringify(jsonData));
+    const response = await fetch(url, { method: "POST", body: formData });
+    const data = await response.json().catch((err) => {
+      throw err;
+    });
+    console.log(data);
+    // console.log(countOnes(data.code_error));
+    setCodeErrorCount(countOnes(data.code_error));
+    setRecoveredHashEcc(data.recovered_hash_ecc);
+
+    if (vk) {
+      // await vk
+      //   .recover(sender, data.hash_ecc, data.feat_xor_ecc)
+      //   .catch((err) => {
+      //     setRegisterStatus(4);
+      //     throw err;
+      //   });
+    } else {
+      console.error("VoiceKeyRecover contract not initialized yet");
+    }
   };
 
   return (
@@ -149,9 +191,15 @@ function App() {
             </Typography>
             <RecordButton
               sendRecording={handleKeyRecoverWav}
-              disabled={recordDisabled}
-              setDisabled={setRecordDisabled}
+              disabled={isRecording}
+              setDisabled={setIsRecording}
             />
+            {codeErrorCount !== null && (
+              <>
+                error bit count: {codeErrorCount} is less then threshold:{" "}
+                {threshold}
+              </>
+            )}
             <Box component="p" width="80%">
               <Typography
                 variant="h6"
@@ -165,6 +213,15 @@ function App() {
               >
                 h_W = {hashEcc}
               </Typography>
+              {recoveredHashEcc && (
+                <Typography
+                  variant="h6"
+                  color={hashEcc === recoveredHashEcc ? "green" : "error"}
+                  sx={{ marginBottom: 2, overflowWrap: "break-word" }}
+                >
+                  recovered h_W = {recoveredHashEcc}
+                </Typography>
+              )}
             </Box>
           </CardContent>
         </Card>
@@ -177,15 +234,15 @@ function App() {
             </Typography>
             <RecordButton
               sendRecording={handleKeyRegisterWav}
-              disabled={recordDisabled}
-              setDisabled={setRecordDisabled}
+              disabled={isRecording}
+              setDisabled={setIsRecording}
             />
             <RegisterStatus registerStatus={registerStatus} />
           </CardContent>
         </Card>
       )}
       <Modal
-        open={recordDisabled}
+        open={isRecording}
         style={{
           display: "flex",
           flexDirection: "column",
@@ -195,12 +252,13 @@ function App() {
       >
         <Card sx={{ p: 5 }}>
           <CardContent>
-          <Typography variant="h6" marginBottom={2}>
-            Please read the following text. <br/>(recording...{recordDisabled && <Countdown sec={5} />} s)
-          </Typography>
-          <Typography variant="p" color="red">
-            The sun is shining and the birds are singing.
-          </Typography>
+            <Typography variant="h6" marginBottom={2}>
+              Please read the following text. <br />
+              (recording...{isRecording && <Countdown sec={5} />} s)
+            </Typography>
+            <Typography variant="p" color="red">
+              The sun is shining and the birds are singing.
+            </Typography>
           </CardContent>
         </Card>
       </Modal>
