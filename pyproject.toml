@@ -21,6 +21,7 @@ bchlib = "^0.14.0"
 
 [tool.poetry.group.dev.dependencies]
 maturin = "^0.14.17"
+autopep8 = "^2.0.2"
 
 [build-system]
 requires = ["poetry-core"]

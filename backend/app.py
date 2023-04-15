@@ -69,12 +69,15 @@ def gen_proof():
     msg = hex_to_bytearray(json_data["msg"])
 
     code_error, hash_ecc_msg, recovered_hash_ecc = recover(new_feat, feat_xor_ecc, hash_ecc, msg)
+    proof_succeed, proof_bin, session_id = generate_proof(new_feat, code_error, feat_xor_ecc, msg)
 
     ret = {
         "new_feat": bytearray_to_hex(new_feat),
         "recovered_hash_ecc" : bytearray_to_hex(recovered_hash_ecc),
         "hash_ecc_msg": bytearray_to_hex(hash_ecc_msg),
         "code_error": bytearray_to_hex(code_error),
+        "proof": proof_bin,
+        "session_id": session_id,
     }
     print(ret)
 
