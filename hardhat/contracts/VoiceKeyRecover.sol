@@ -3,44 +3,46 @@ pragma solidity >=0.8.4;
 
 import "./VerifierWrapper.sol";
 
+// import "./ENS.sol";
+
 contract VoiceKeyRecover is VerifierWrapper {
+    // using ENSNamehash for bytes;
     struct VoiceData {
+        address owner;
         bytes32 featureHash;
         bytes32 commitmentHash;
         bytes commitment;
     }
 
     mapping(address => bool) public isRegistered;
-    mapping(address => address) public ownerOfWallet;
     mapping(address => VoiceData) public voiceDataOfWallet;
     mapping(bytes32 => bool) public usedMessageHashes;
 
-    constructor(uint _maxMsgSize) VerifierWrapper(_maxMsgSize) {}
+    // ENS ens;
+
+    constructor(uint _maxMsgSize) VerifierWrapper(_maxMsgSize) {
+        // ens = ENS(_ens);
+    }
 
     function getOwner() public view returns (address) {
         require(isRegistered[msg.sender], "not registered");
-        return ownerOfWallet[msg.sender];
+        return voiceDataOfWallet[msg.sender].owner;
     }
 
-    function registerOwner(address owner) public {
-        require(!isRegistered[msg.sender], "already registered");
-        isRegistered[msg.sender] = true;
-        ownerOfWallet[msg.sender] = owner;
-    }
-
-    function registerVoiceOfWallet(
+    function register(
         address walletAddr,
         bytes32 featureHash,
         bytes32 commitmentHash,
         bytes calldata commitment
     ) public {
-        require(isRegistered[walletAddr], "not registered");
-        require(msg.sender == ownerOfWallet[walletAddr], "not owner");
+        require(!isRegistered[walletAddr], "already registered");
         voiceDataOfWallet[walletAddr] = VoiceData(
+            msg.sender,
             featureHash,
             commitmentHash,
             commitment
         );
+        isRegistered[walletAddr] = true;
     }
 
     function recover(
@@ -51,8 +53,9 @@ contract VoiceKeyRecover is VerifierWrapper {
         require(isRegistered[walletAddr], "The wallet is not registered");
         require(!usedMessageHashes[messageHash], "Message hash already used");
         VoiceData memory voiceData = voiceDataOfWallet[walletAddr];
-        address oldOwner = ownerOfWallet[walletAddr];
+        address oldOwner = voiceData.owner;
         address newOwner = msg.sender;
+        // require(oldOwner == resolveENS(oldENS), "Invalid old ENS");
         bytes memory message = abi.encodePacked(oldOwner, newOwner);
         require(
             VerifierWrapper.verify(
@@ -65,16 +68,42 @@ contract VoiceKeyRecover is VerifierWrapper {
             "invalid proof"
         );
         usedMessageHashes[messageHash] = true;
-        ownerOfWallet[walletAddr] = newOwner;
+        // address newOwner = resolveENS(newENS);
+        // address newOwner = msg.sender;
+        voiceDataOfWallet[walletAddr].owner = newOwner;
+    }
+
+    function refreshVoiceData(
+        address walletAddr,
+        bytes32 featureHash,
+        bytes32 commitmentHash,
+        bytes calldata commitment
+    ) public {
+        require(isRegistered[walletAddr], "The wallet is not registered");
+        VoiceData memory voiceData = voiceDataOfWallet[walletAddr];
+        require(
+            msg.sender == voiceData.owner,
+            "The owner can call the refresh"
+        );
+        voiceDataOfWallet[walletAddr].featureHash = featureHash;
+        voiceDataOfWallet[walletAddr].commitmentHash = commitmentHash;
+        voiceDataOfWallet[walletAddr].commitment = commitment;
     }
 
     function getMessageOfRecover(
         address walletAddr
     ) public view returns (bytes memory) {
         require(isRegistered[walletAddr], "The wallet is not registered");
-        address oldOwner = ownerOfWallet[walletAddr];
+        VoiceData memory voiceData = voiceDataOfWallet[walletAddr];
+        address oldOwner = voiceData.owner;
         address newOwner = msg.sender;
         bytes memory message = abi.encodePacked(oldOwner, newOwner);
         return message;
     }
+
+    // function resolveENS(string calldata ensName) public view returns (address) {
+    //     bytes32 node = bytes(ensName).namehash();
+    //     Resolver resolver = ens.resolver(node);
+    //     return resolver.addr(node);
+    // }
 }
