@@ -5,5 +5,7 @@
     "hardhat": "^2.13.1",
     "typescript": "^5.0.4"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@ensdomains/ens-contracts": "^0.0.8"
+  }
 }
