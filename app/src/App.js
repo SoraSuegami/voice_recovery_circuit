@@ -21,6 +21,7 @@ function App() {
   const [codeErrorCount, setCodeErrorCount] = useState(null);
   const [featXorEcc, setFeatXorEcc] = useState(null);
   const [recoveredHashEcc, setRecoveredHashEcc] = useState(null);
+  const [proof, setProof] = useState(null);
   const [hashFeatXorEcc, setHashFeatXorEcc] = useState(null);
 
   // 0: commitment生成中,  1: commitment生成失敗, 2: commitment生成完了,3: commitment送信中,  4: commitment送信失敗 ,5: commitment送信完了,
@@ -64,6 +65,14 @@ function App() {
     backgroundColor: "#f5f5f5",
   };
 
+  const longTextSx = {
+    marginBottom: 2,
+    width: "100%",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -85,6 +94,7 @@ function App() {
           );
           console.log(VoiceKeyRecovery.abi);
           await checkRegistered(vk, sender);
+
           setVk(vk);
           console.log("initialized!");
           setIsRecording(false);
@@ -159,14 +169,15 @@ function App() {
     // console.log(countOnes(data.code_error));
     setCodeErrorCount(countOnes(data.code_error));
     setRecoveredHashEcc(data.recovered_hash_ecc);
+    setProof(data.proof)
 
     if (vk) {
-      // await vk
-      //   .recover(sender, data.hash_ecc, data.feat_xor_ecc)
-      //   .catch((err) => {
-      //     setRegisterStatus(4);
-      //     throw err;
-      //   });
+      await vk
+        // TODO: not sender, but from form
+        .recover(sender, data.hash_ecc_msg, data.proof)
+        .catch((err) => {
+          throw err;
+        });
     } else {
       console.error("VoiceKeyRecover contract not initialized yet");
     }
@@ -201,25 +212,19 @@ function App() {
               </>
             )}
             <Box component="p" width="80%">
-              <Typography
-                variant="h6"
-                sx={{ marginBottom: 2, overflowWrap: "break-word" }}
-              >
-                c = {featXorEcc}
+              <Typography variant="h6" sx={longTextSx}>
+                c = <br/>{featXorEcc}
               </Typography>
-              <Typography
-                variant="h6"
-                sx={{ marginBottom: 2, overflowWrap: "break-word" }}
-              >
-                h_W = {hashEcc}
+              <Typography variant="h6" sx={longTextSx}>
+                h_W = <br/>{hashEcc}
               </Typography>
               {recoveredHashEcc && (
                 <Typography
                   variant="h6"
                   color={hashEcc === recoveredHashEcc ? "green" : "error"}
-                  sx={{ marginBottom: 2, overflowWrap: "break-word" }}
+                  sx={longTextSx}
                 >
-                  recovered h_W = {recoveredHashEcc}
+                  recovered h_W = <br/>{recoveredHashEcc}
                 </Typography>
               )}
             </Box>
