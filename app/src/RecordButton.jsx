@@ -1,9 +1,9 @@
-import React, { useState, useRef } from "react";
+import React, { useRef } from "react";
 import MicIcon from "@mui/icons-material/Mic";
 import IconButton from "@mui/material/IconButton";
 import MediaStreamRecorder from "msr";
 
-const record_duration =1000;
+const record_duration =5000;
 
 // eslint-disable-next-line react/prop-types
 function RecordButton({ sendRecording, disabled, setDisabled, ...props }) {

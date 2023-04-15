@@ -1,10 +1,9 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-import io
-import soundfile
 from machine_learning.speaker_recognition import calc_feat_vec
-from utils import fuzzy_commitment, bytearray_to_hex
+from utils import fuzzy_commitment, bytearray_to_hex, hex_to_bytearray, feat_bytearray_from_wav_blob, recover, my_hash
 import numpy as np
+import json
 
 app = Flask(__name__)
 cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -29,22 +28,53 @@ def upload():
 @app.route('/api/feature-vector', methods=['POST'])
 def feat_vec():
     form_file = request.files['file']
-    file_data = io.BytesIO(form_file.read())
+    feat = feat_bytearray_from_wav_blob(form_file)
+    print(bytearray_to_hex(feat))
 
-    audio, sample_rate = soundfile.read(file_data)
-
-    feat_vec = calc_feat_vec(audio, sample_rate)
-    print(feat_vec)
-
-    feat_bytearray = bytearray(np.packbits(feat_vec))
-    print(feat_bytearray)
-
-    feat_xor_ecc, hash_ecc = fuzzy_commitment(feat_bytearray)    
+    feat_xor_ecc, hash_ecc = fuzzy_commitment(feat)
+    hash_feat_xor_ecc = my_hash(feat_xor_ecc)  
 
     ret = {
-        "feat" : bytearray_to_hex(feat_bytearray),
+        "feat" : bytearray_to_hex(feat),
         "hash_ecc" : bytearray_to_hex(hash_ecc),
+        "hash_feat_xor_ecc" : bytearray_to_hex(hash_feat_xor_ecc),
         "feat_xor_ecc": bytearray_to_hex(feat_xor_ecc),
+    }
+    print(ret)
+
+    return jsonify(ret)
+
+"""
+特徴量ベクトルを計算し、commitment h(W),cを返す
+"""
+@app.route('/api/gen-proof', methods=['POST'])
+def gen_proof():
+    form_file = request.files['file']
+    new_feat = feat_bytearray_from_wav_blob(form_file)
+    print(bytearray_to_hex(new_feat))
+
+    """
+    Request形式
+    {
+        "hash_ecc" : hex,
+        "feat_xor_ecc": hex,
+        "msg": hex,
+    }
+    """
+    json_data = json.loads(request.form['jsonData'])
+    print(json_data)
+    
+    hash_ecc = hex_to_bytearray(json_data["hash_ecc"])
+    feat_xor_ecc = hex_to_bytearray(json_data["feat_xor_ecc"])
+    msg = hex_to_bytearray(json_data["msg"])
+
+    code_error, hash_ecc_msg, recovered_hash_ecc = recover(new_feat, feat_xor_ecc, hash_ecc, msg)
+
+    ret = {
+        "new_feat": bytearray_to_hex(new_feat),
+        "recovered_hash_ecc" : bytearray_to_hex(recovered_hash_ecc),
+        "hash_ecc_msg": bytearray_to_hex(hash_ecc_msg),
+        "code_error": bytearray_to_hex(code_error),
     }
     print(ret)
 
