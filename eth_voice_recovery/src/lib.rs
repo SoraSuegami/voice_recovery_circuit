@@ -263,6 +263,24 @@ impl Circuit<Fr> for DefaultVoiceRecoverCircuit {
                     &self.commitment,
                     &self.message,
                 )?;
+                let gate = config.inner.gate();
+                let packed_msg = result
+                    .assigned_message
+                    .chunks(16)
+                    .map(|bytes| {
+                        let mut sum = gate.load_zero(ctx);
+                        for idx in 0..16 {
+                            sum = gate.mul_add(
+                                ctx,
+                                QuantumCell::Existing(&bytes[idx]),
+                                QuantumCell::Constant(Fr::from_u128(1u128 << (8 * idx))),
+                                QuantumCell::Existing(&sum),
+                            );
+                        }
+                        sum
+                    })
+                    .collect_vec();
+                debug_assert_eq!(16 * packed_msg.len(), result.assigned_message.len());
                 config.inner.finalize(ctx);
                 instance_cell.push(result.assigned_commitment_hash.cell());
                 // result
@@ -275,13 +293,7 @@ impl Circuit<Fr> for DefaultVoiceRecoverCircuit {
                 //     .value()
                 //     .map(|v| println!("assigned message hash {:?}", v));
                 instance_cell.push(result.assigned_message_hash.cell());
-                instance_cell.append(
-                    &mut result
-                        .assigned_message
-                        .into_iter()
-                        .map(|v| v.cell())
-                        .collect_vec(),
-                );
+                instance_cell.append(&mut packed_msg.into_iter().map(|v| v.cell()).collect_vec());
 
                 Ok(())
             },
@@ -296,7 +308,7 @@ impl Circuit<Fr> for DefaultVoiceRecoverCircuit {
 impl CircuitExt<Fr> for DefaultVoiceRecoverCircuit {
     fn num_instance(&self) -> Vec<usize> {
         let params = Self::read_config_params();
-        vec![3 + params.max_msg_size]
+        vec![3 + params.max_msg_size / 16]
     }
 
     fn instances(&self) -> Vec<Vec<Fr>> {
@@ -323,14 +335,18 @@ impl CircuitExt<Fr> for DefaultVoiceRecoverCircuit {
             0;
             config_params.max_msg_size - self.message.len()
         ]);
-        let mut message_public = message_ext
-            .iter()
-            .map(|byte| Fr::from(*byte as u64))
+        let mut packed_message = message_ext
+            .chunks(16)
+            .map(|bytes| Fr::from_u128(u128::from_le_bytes(bytes.try_into().unwrap())))
             .collect_vec();
+        // let mut message_public = message_ext
+        //     .iter()
+        //     .map(|byte| Fr::from(*byte as u64))
+        //     .collect_vec();
         let message_hash = poseidon_hash(&[word.to_vec(), message_ext].concat());
         // println!("message hash {}", hex::encode(&message_hash.to_bytes()));
         instances.push(message_hash);
-        instances.append(&mut message_public);
+        instances.append(&mut packed_message);
         vec![instances]
     }
 }

@@ -152,7 +152,7 @@ enum Commands {
         #[arg(long, default_value = "./build/app.vk")]
         vk_path: String,
         /// verifier code path
-        #[arg(long, default_value = "./build/VerifierInternal.sol")]
+        #[arg(long, default_value = "./build/Verifier.sol")]
         code_path: String,
     },
 }

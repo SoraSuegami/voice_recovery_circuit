@@ -1,5 +1,4 @@
 import { ethers } from "hardhat";
-import { ENS__factory } from "../typechain";
 
 async function main() {
   const accounts = await ethers.getSigners();

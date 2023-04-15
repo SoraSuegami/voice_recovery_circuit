@@ -206,6 +206,21 @@ pub fn prove(
         .unwrap();
         transcript.finalize()
     };
+
+    {
+        let mut transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
+        let verifier_params = app_params.verifier_params();
+        let strategy = SingleStrategy::new(&verifier_params);
+        // let strategy = AccumulatorStrategy::new(verifier_params);
+        verify_proof::<_, VerifierGWC<_>, _, _, _>(
+            &app_params,
+            &app_pk.get_vk(),
+            strategy,
+            &[&[instances[0].as_slice()]],
+            &mut transcript,
+        )
+        .unwrap();
+    };
     {
         let f = File::create(proof_path).unwrap();
         let mut writer = BufWriter::new(f);
@@ -328,20 +343,6 @@ pub fn evm_prove(
                                 // ),
     };
     {
-        let mut transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
-        let verifier_params = app_params.verifier_params();
-        let strategy = SingleStrategy::new(&verifier_params);
-        // let strategy = AccumulatorStrategy::new(verifier_params);
-        verify_proof::<_, VerifierGWC<_>, _, _, _>(
-            &app_params,
-            &app_pk.get_vk(),
-            strategy,
-            &[&[instances[0].as_slice()]],
-            &mut transcript,
-        )
-        .unwrap();
-    };
-    {
         let public_input_str = serde_json::to_string(&public_input).unwrap();
         let mut file = File::create(public_input_path)?;
         write!(file, "{}", public_input_str).unwrap();
@@ -395,21 +396,24 @@ pub fn verify(
     let mut feature_hash = [0; 32];
     feature_hash.copy_from_slice(&hex::decode(&public_input.feature_hash[2..]).unwrap());
     instances.push(Fr::from_bytes(&feature_hash).unwrap());
-    let mut message_public = message
-        .iter()
-        .map(|byte| Fr::from(*byte as u64))
-        .collect_vec();
+    let mut message_ext = message.to_vec();
     {
         let config_params = DefaultVoiceRecoverCircuit::read_config_params();
-        message_public.append(&mut vec![
-            Fr::from(0);
-            config_params.max_msg_size - message.len()
-        ]);
+        message_ext.append(&mut vec![0; config_params.max_msg_size - message.len()]);
     }
+    let mut packed_message = message_ext
+        .chunks(16)
+        .map(|bytes| Fr::from_u128(u128::from_le_bytes(bytes.try_into().unwrap())))
+        .collect_vec();
+    // let mut message_public = message
+    //     .iter()
+    //     .map(|byte| Fr::from(*byte as u64))
+    //     .collect_vec();
+
     let mut message_hash = [0; 32];
     message_hash.copy_from_slice(&hex::decode(&public_input.message_hash[2..]).unwrap());
     instances.push(Fr::from_bytes(&message_hash).unwrap());
-    instances.append(&mut message_public);
+    instances.append(&mut packed_message);
     {
         let mut transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
         let verifier_params = app_params.verifier_params();
@@ -450,7 +454,7 @@ pub fn gen_evm_verifier(
         .unwrap()
     };
     let circuit_params = DefaultVoiceRecoverCircuit::read_config_params();
-    let num_instances = vec![3 + circuit_params.max_msg_size];
+    let num_instances = vec![3 + circuit_params.max_msg_size / 16];
     let verifier_yul = {
         let svk = app_params.get_g()[0].into();
         let dk = (app_params.g2(), app_params.s_g2()).into();

@@ -9,29 +9,29 @@ describe("VoiceKeyRecover", function () {
   let VoiceKeyRecover: Contract;
 
   beforeEach(async function () {
-    const signer = (await ethers.getSigners())[0];
-    console.log(await signer.getBalance());
-    const yulVerifier = await fs.readFile("./test_data/verifier_code.txt");
-    const wordSize = 32;
+    // const signer = (await ethers.getSigners())[0];
+    // console.log(await signer.getBalance());
+    // const yulVerifier = await fs.readFile("./test_data/verifier_code.txt");
+    // const wordSize = 32;
     const maxMsgSize = 64;
 
-    const factory = ethers.ContractFactory.fromSolidity(
-      { bytecode: yulVerifier, abi: [] },
-      signer
-    );
-    const contract = await factory.deploy({ gasLimit: 900_000_000 });
-    await contract.deployed();
-    console.log(contract.address);
+    // const factory = ethers.ContractFactory.fromSolidity(
+    //   { bytecode: yulVerifier, abi: [] },
+    //   signer
+    // );
+    // const contract = await factory.deploy({ gasLimit: 900_000_000 });
+    // await contract.deployed();
+    // console.log(contract.address);
 
     const VoiceFactory = await ethers.getContractFactory("VoiceKeyRecover");
-    VoiceKeyRecover = await VoiceFactory.deploy(contract.address, wordSize, maxMsgSize, { gasLimit: 15771336 });
+    VoiceKeyRecover = await VoiceFactory.deploy(maxMsgSize, { gasLimit: 15771336 });
     await VoiceKeyRecover.deployed();
     console.log(VoiceKeyRecover.address);
   });
 
   it("should register voice data", async function () {
-    const myAddr = await accounts[0].getAddress();
-    const currentENS = "example1.eth";
+    const signer = (await ethers.getSigners())[0];
+    const myAddr = signer.address;
     const input = JSON.parse(await fs.readFile("./test_data/public_input.json", "utf-8"));
     const commitment = input.commitment;
     const featureHash = input.featureHash;
