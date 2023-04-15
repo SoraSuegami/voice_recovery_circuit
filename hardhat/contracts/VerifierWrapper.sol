@@ -21,15 +21,18 @@ contract VerifierWrapper is Verifier {
         pubInputs[0] = uint256(commitmentHash);
         pubInputs[1] = uint256(featureHash);
         pubInputs[2] = uint256(messageHash);
-        for (uint i = 0; i < message.length / 16; i++) {
+        bytes memory messageExt = abi.encodePacked(
+            message,
+            new bytes(maxMsgSize - message.length)
+        );
+        for (uint i = 0; i < messageExt.length / 16; i++) {
             uint coeff = 1;
             for (uint j = 0; j < 16; j++) {
-                pubInputs[3 + i] += coeff * uint256(uint8(message[16 * i + j]));
+                pubInputs[3 + i] +=
+                    coeff *
+                    uint256(uint8(messageExt[16 * i + j]));
                 coeff = coeff << 8;
             }
-        }
-        for (uint i = message.length / 16; i < maxMsgSize / 16; i++) {
-            pubInputs[3 + i] = 0;
         }
         return Verifier.verify(pubInputs, proof);
     }

@@ -16,12 +16,6 @@ const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
-      blockGasLimit: 9000000000000000,
-      chainId: 1337,
-      allowUnlimitedContractSize: true,
-      accounts: {
-        accountsBalance: "1121264648100000000000000"
-      },
     },
   },
   contractSizer: {

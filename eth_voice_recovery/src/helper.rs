@@ -52,12 +52,11 @@ pub struct DefaultVoiceRecoverCircuitInput {
     errors: String,
     commitment: String,
     message: String,
-    feature_hash: String,
-    message_hash: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct DefaultVoiceRecoverCircuitPublicInput {
+    commitment: String,
     commitment_hash: String,
     message: String,
     feature_hash: String,
@@ -165,7 +164,7 @@ pub fn prove(
     let features = hex::decode(&input.features[2..]).unwrap();
     let errors = hex::decode(&input.errors[2..]).unwrap();
     let commitment = hex::decode(&input.commitment[2..]).unwrap();
-    let message = input.message.as_bytes().to_vec();
+    let message = hex::decode(&input.message[2..]).unwrap();
     let circuit = DefaultVoiceRecoverCircuit {
         features,
         errors,
@@ -228,6 +227,7 @@ pub fn prove(
         writer.flush().unwrap();
     };
     let public_input = DefaultVoiceRecoverCircuitPublicInput {
+        commitment: input.commitment,
         commitment_hash: format!("0x{}", hex::encode(instances[0][0].to_bytes()).as_str(),),
         feature_hash: format!("0x{}", hex::encode(instances[0][1].to_bytes()).as_str(),),
         message_hash: format!("0x{}", hex::encode(instances[0][2].to_bytes()).as_str()),
@@ -287,7 +287,7 @@ pub fn evm_prove(
     let features = hex::decode(&input.features[2..]).unwrap();
     let errors = hex::decode(&input.errors[2..]).unwrap();
     let commitment = hex::decode(&input.commitment[2..]).unwrap();
-    let message = input.message.as_bytes().to_vec();
+    let message = hex::decode(&input.message[2..]).unwrap();
     let circuit = DefaultVoiceRecoverCircuit {
         features,
         errors,
@@ -327,16 +327,26 @@ pub fn evm_prove(
     //     transcript.finalize()
     // };
     {
-        let f = File::create(proof_path).unwrap();
-        let mut writer = BufWriter::new(f);
-        writer.write_all(&proof).unwrap();
-        writer.flush().unwrap();
+        let proof_hex = hex::encode(&proof);
+        let mut file = File::create(proof_path)?;
+        write!(file, "0x{}", proof_hex).unwrap();
+        file.flush().unwrap();
     };
     // let acc_bytes = encode_calldata(&[acc], &[]);
     let public_input = DefaultVoiceRecoverCircuitPublicInput {
-        commitment_hash: format!("0x{}", hex::encode(instances[0][0].to_bytes()).as_str(),),
-        feature_hash: format!("0x{}", hex::encode(instances[0][1].to_bytes()).as_str(),),
-        message_hash: format!("0x{}", hex::encode(instances[0][2].to_bytes()).as_str()),
+        commitment: input.commitment,
+        commitment_hash: format!(
+            "0x{}",
+            hex::encode(encode_calldata(&[vec![instances[0][0]]], &[])).as_str(),
+        ),
+        feature_hash: format!(
+            "0x{}",
+            hex::encode(encode_calldata(&[vec![instances[0][1]]], &[])).as_str(),
+        ),
+        message_hash: format!(
+            "0x{}",
+            hex::encode(encode_calldata(&[vec![instances[0][2]]], &[])).as_str()
+        ),
         message: input.message, // acc: format!(
                                 //     "0x{}",
                                 //     hex::encode(acc.iter().map(|v| v.get_lower_128() as u8).collect_vec(),).as_str()
@@ -389,7 +399,7 @@ pub fn verify(
     // let acc = hex::decode(&public_input.acc[2..]).unwrap();
     // let acc_public = acc.iter().map(|byte| Fr::from(*byte as u64)).collect_vec();
     let mut instances = vec![];
-    let message = public_input.message.as_bytes().to_vec();
+    let message = hex::decode(&public_input.message[2..]).unwrap();
     let mut commitment_hash = [0; 32];
     commitment_hash.copy_from_slice(&hex::decode(&public_input.commitment_hash[2..]).unwrap());
     instances.push(Fr::from_bytes(&commitment_hash).unwrap());

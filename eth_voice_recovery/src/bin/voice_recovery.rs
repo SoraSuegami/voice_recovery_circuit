@@ -98,10 +98,10 @@ enum Commands {
         #[arg(long, default_value = "./build/input.json")]
         input_path: String,
         /// proof file path
-        #[arg(long, default_value = "./build/evm_proof.bin")]
+        #[arg(long, default_value = "./build/evm_proof.hex")]
         proof_path: String,
         /// public input file path
-        #[arg(long, default_value = "./build/public_input.json")]
+        #[arg(long, default_value = "./build/evm_public_input.json")]
         public_input_path: String,
     },
     Verify {

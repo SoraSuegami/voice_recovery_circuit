@@ -73,6 +73,17 @@ contract VoiceKeyRecover is VerifierWrapper {
         voiceDataOfWallet[walletAddr].owner = newOwner;
     }
 
+    function getMessageOfRecover(
+        address walletAddr
+    ) public view returns (bytes memory) {
+        require(isRegistered[walletAddr], "The wallet is not registered");
+        VoiceData memory voiceData = voiceDataOfWallet[walletAddr];
+        address oldOwner = voiceData.owner;
+        address newOwner = msg.sender;
+        bytes memory message = abi.encodePacked(oldOwner, newOwner);
+        return message;
+    }
+
     // function resolveENS(string calldata ensName) public view returns (address) {
     //     bytes32 node = bytes(ensName).namehash();
     //     Resolver resolver = ens.resolver(node);

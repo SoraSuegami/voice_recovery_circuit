@@ -2,6 +2,7 @@ import { ethers } from "hardhat";
 import { Signer, Contract } from "ethers";
 import { expect } from "chai";
 import * as fs from "fs/promises";
+import { AbiCoder } from "@ethersproject/abi";
 
 
 describe("VoiceKeyRecover", function () {
@@ -24,7 +25,7 @@ describe("VoiceKeyRecover", function () {
     // console.log(contract.address);
 
     const VoiceFactory = await ethers.getContractFactory("VoiceKeyRecover");
-    VoiceKeyRecover = await VoiceFactory.deploy(maxMsgSize, { gasLimit: 15771336 });
+    VoiceKeyRecover = await VoiceFactory.deploy(maxMsgSize);
     await VoiceKeyRecover.deployed();
     console.log(VoiceKeyRecover.address);
   });
@@ -32,16 +33,24 @@ describe("VoiceKeyRecover", function () {
   it("should register voice data", async function () {
     const signer = (await ethers.getSigners())[0];
     const myAddr = signer.address;
-    const input = JSON.parse(await fs.readFile("./test_data/public_input.json", "utf-8"));
-    const commitment = input.commitment;
-    const featureHash = input.featureHash;
-
-    await VoiceKeyRecover.register(myAddr, commitment, featureHash);
-
-    const registeredData = await VoiceKeyRecover.voiceDataMapping(myAddr);
+    const input = JSON.parse(await fs.readFile("./test_data/evm_public_input.json", "utf-8"));
+    await VoiceKeyRecover.register(myAddr, input.feature_hash, input.commitment_hash, input.commitment);
+    const registeredData = await VoiceKeyRecover.voiceDataOfWallet(myAddr);
     expect(registeredData.owner).to.equal(myAddr);
-    expect(registeredData.featureHash).to.equal(featureHash);
-    expect(ethers.utils.hexlify(registeredData.commitment)).to.equal(ethers.utils.hexlify(commitment));
+    expect(registeredData.featureHash).to.equal(input.feature_hash);
+    expect(registeredData.commitmentHash).to.equal(input.commitment_hash);
+    expect(ethers.utils.hexlify(registeredData.commitment)).to.equal(ethers.utils.hexlify(input.commitment));
+  });
+
+  it("should recover and update the owner address", async function () {
+    const signer0 = (await ethers.getSigners())[0];
+    const input = JSON.parse(await fs.readFile("./test_data/evm_public_input.json", "utf-8"));
+    await VoiceKeyRecover.register(signer0.address, input.feature_hash, input.commitment_hash, input.commitment);
+    const proof = await fs.readFile("./test_data/evm_proof.hex", "utf-8");
+    const signer1 = (await ethers.getSigners())[1];
+    await VoiceKeyRecover.connect(signer1).recover(signer0.address, input.message_hash, proof);
+    const registeredData = await VoiceKeyRecover.voiceDataOfWallet(signer0.address);
+    expect(registeredData.owner).to.equal(signer1.address);
   });
 
   // it("should recover and update ENS", async function () {
